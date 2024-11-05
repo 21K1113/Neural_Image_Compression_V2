@@ -1,0 +1,21 @@
+Python		3.11.5
+
+Pillow		10.0.1
+torch		2.0.1+cu118
+torchvision	0.15.2+cu118
+matplotlib	3.6.2
+numpy		1.23.5
+opencv-python	4.6.0.66
+
+
+py -3.11 -m venv .venv
+
+pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
+pip install Pillow==10.0.1
+pip install matplotlib==3.6.2
+pip install numpy==1.23.5
+pip install opencv-python==4.6.0.66
+pip install tensorboardX==2.6.2.2
+pip install tensorboard
+
+
