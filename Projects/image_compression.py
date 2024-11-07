@@ -22,6 +22,7 @@ print_(datetime.datetime.now(), PRINTLOG_PATH)
 for var in over_write_variable_dict.keys():
     print_(f"{var} : {eval(var)}", PRINTLOG_PATH)
 
+reconstructed_totyuu = None
 
 def random_crop_dataset(datasets, crop_size, num_crops, uniform_distribution, dim=2):
     crops = []
@@ -247,7 +248,7 @@ def train_models(fp):
         # print(torch.any(torch.isinf(decoder_input)))
         if epoch < NUM_EPOCHS * 0.95:
             # 量子化誤差を考慮した一様分布ノイズを生成
-            noise = (torch.rand_like(decoder_input) - 0.5) / (2 ** FP_BITS)
+            noise = (torch.rand_like(decoder_input) - 0.5) / pow(2, FP_BITS)
             decoder_input_noise = decoder_input + noise
         else:
             # decoder_input_noise = quantize_norm(decoder_input, num_bits)
@@ -258,7 +259,7 @@ def train_models(fp):
         target = inputs.reshape(-1, 3)
         loss = criterion(decoder_output, target)
         if TF_WRITE_PSNR:
-            psnr = calculate_psnr(quantize_to_bit(decoder_output, OUTPUT_BITS), quantize_to_bit(target, OUTPUT_BITS))
+            psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BITS), quantize_from_norm_to_bit(target, OUTPUT_BITS))
 
         # 逆伝播と最適化
         optimizer.zero_grad()
@@ -281,12 +282,14 @@ def train_models(fp):
         if (epoch + 1) % INTERVAL_PRINT == 0:
             if TF_PRINT_PSNR:
                 reconstructed = decode_image(fp_all_quantize(fp, FP_BITS), decoder, i, False)
+                global reconstructed_totyuu
+                reconstructed_totyuu = reconstructed
                 if FP_DIMENSION == 2:
-                    all_psnr = calculate_psnr(quantize_to_bit(reconstructed, OUTPUT_BITS),
-                                            quantize_to_bit(images[0].permute(1, 2, 0), OUTPUT_BITS))
+                    all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BITS),
+                                              quantize_from_norm_to_bit(images[0].permute(1, 2, 0), OUTPUT_BITS))
                 elif FP_DIMENSION == 3:
-                    all_psnr = calculate_psnr(quantize_to_bit(reconstructed, OUTPUT_BITS),
-                                              quantize_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BITS))
+                    all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BITS),
+                                              quantize_from_norm_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BITS))
                 writer.add_scalar('PSNR/mip0', all_psnr, epoch + 1)
                 if TF_PRINT_LOG:
                     print_(f'Epoch [{epoch + 1}/{NUM_EPOCHS}], Loss: {loss.item():.4f} PSNR: {all_psnr:.4f}', PRINTLOG_PATH)
@@ -403,7 +406,7 @@ def process_images(train_model, fp):
         end = time.perf_counter()
         print_("展開時間：" + str(end - start), PRINTLOG_PATH)
 
-        reconstructed_image = quantize_to_bit(reconstructed.cpu().numpy(), OUTPUT_BITS)
+        reconstructed_image = quantize_from_norm_to_bit(reconstructed.cpu().numpy(), OUTPUT_BITS)
         reconstructed_image = reconstructed_image.astype(bits2dtype_np(OUTPUT_BITS))
         reconstructed_images.append(reconstructed_image)
 
@@ -479,6 +482,23 @@ elif IMAGE_DIMENSION == 3:
 
 
 reconstructed_images = process_images(TF_TRAIN_MODEL, feature_pyramid)
+np.set_printoptions(threshold=1000)
+"""
+print(torch.floor(reconstructed_totyuu * (pow(2, 8) - 1) + 0.5))
+
+reconstructed_totyuu = quantize_from_norm_to_bit(reconstructed_totyuu, 8)
+
+print(reconstructed_totyuu.cpu().numpy())
+print(reconstructed_totyuu.cpu().numpy().dtype)
+
+print(reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32))
+
+print(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32))
+print(np.mean(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
+print(np.max(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
+print(np.min(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
+print(np.mean(np.abs(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32))))
+"""
 for i in range(MAX_MIP_LEVEL + 1):
     if IMAGE_DIMENSION == 2:
         psnr = calculate_psnr(images[i].cpu().numpy().transpose(1, 2, 0).astype(np.float32) * 255,

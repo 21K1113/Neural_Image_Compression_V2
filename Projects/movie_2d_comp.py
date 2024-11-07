@@ -82,7 +82,7 @@ def train_models():
         
         decoder_output = decoder(decoder_input)
         loss = criterion(decoder_output, image)
-        psnr = calculate_psnr(quantize_to_bit(decoder_output), quantize_to_bit(image))
+        psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output), quantize_from_norm_to_bit(image))
 
         # 逆伝播と最適化
         optimizer.zero_grad()
@@ -178,7 +178,7 @@ def process_images(images, train_model, save_model):
     print("展開時間：" + str(end - start))
 
     reconstructed_image = reconstructed.squeeze().permute(1, 2, 0) # (512, 512, 3)
-    reconstructed_movie = quantize_to_bit(reconstructed_image.view(64, 64, 64, 3)).cpu().numpy()
+    reconstructed_movie = quantize_from_norm_to_bit(reconstructed_image.view(64, 64, 64, 3)).cpu().numpy()
     reconstructed_movie = reconstructed_movie.astype(np.uint8)
     # reconstructed_image = Image.fromarray(reconstructed_image)
 

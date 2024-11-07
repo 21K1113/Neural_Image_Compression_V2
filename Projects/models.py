@@ -8,41 +8,45 @@ def scale_to_bit(tensor, bit=8):
 
 
 # ビット数値を正規化数値に変換
-def normalize_from_bit(tensor, bit=8):
+def normalize_from_bit(tensor, bit):
     scale = pow(2, bit) - 1
     return tensor / scale
 
 
-# 量子化関数
+# 量子化関数 使わない
 def quantize_torch(tensor, num_bits):  # 入力：0~1 出力：0~1
     rounded_tensor = torch.floor(tensor * (pow(2, num_bits)-1) + 0.5)
     return rounded_tensor / (pow(2, num_bits)-1)
 
 
-# 量子化関数
+# 量子化関数 使わない
 def quantize_np(ndy, num_bits):  # 入力：0~1 出力：0~1
     rounded_ndy = np.floor(ndy * (pow(2, num_bits)-1) + 0.5)
     return rounded_ndy / (pow(2, num_bits)-1)
 
 
 # 量子化関数
-def quantize(array, bit):  # 入力：0~1 出力：0~1
+def quantize_from_norm_to_bit(array, bit):  # 入力：0~1 出力：0~2^bits
+    scale = pow(2, bit) - 1
     if isinstance(array, np.ndarray):
-        rounded_ndy = np.floor(array * (pow(2, bit) - 1) + 0.5)
-        return rounded_ndy / (pow(2, bit) - 1)
+        return np.floor(array * scale + 0.5)
     elif isinstance(array, torch.Tensor):
-        rounded_tensor = torch.floor(array * (pow(2, bit) - 1) + 0.5)
-        return rounded_tensor / (pow(2, bit) - 1)
+        return torch.floor(array * scale + 0.5)
 
 
 # 量子化関数
-def quantize_to_bit(array, num_bits=8):  # 入力：0~1 出力：0~2^bits
-    return scale_to_bit(quantize(array, num_bits), num_bits)
+def quantize_from_norm_to_norm(array, bit):  # 入力：0~1 出力：0~1
+    return normalize_from_bit(quantize_from_norm_to_bit(array, bit), bit)
 
 
 # 量子化関数
 def quantize_from_bit_to_bit(array, bit):  # 入力：0~2^bits 出力：0~2^bits
-    return scale_to_bit(quantize(normalize_from_bit(array, bit), bit), bit)
+    return quantize_from_norm_to_bit(normalize_from_bit(array, bit), bit)
+
+
+# 量子化関数
+def quantize_from_bit_to_norm(array, bit):  # 入力：0~2^bits 出力：0~1
+    return normalize_from_bit(quantize_from_bit_to_bit(array, bit), bit)
 
 
 def quantize_clamp(tensor, num_bits=8):
