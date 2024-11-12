@@ -12,7 +12,7 @@ def normalize_from_bit(tensor, bit):
     scale = pow(2, bit) - 1
     return tensor / scale
 
-
+"""
 # 量子化関数 使わない
 def quantize_torch(tensor, num_bits):  # 入力：0~1 出力：0~1
     rounded_tensor = torch.floor(tensor * (pow(2, num_bits)-1) + 0.5)
@@ -23,15 +23,23 @@ def quantize_torch(tensor, num_bits):  # 入力：0~1 出力：0~1
 def quantize_np(ndy, num_bits):  # 入力：0~1 出力：0~1
     rounded_ndy = np.floor(ndy * (pow(2, num_bits)-1) + 0.5)
     return rounded_ndy / (pow(2, num_bits)-1)
-
+"""
 
 # 量子化関数
-def quantize_from_norm_to_bit(array, bit):  # 入力：0~1 出力：0~2^bits
-    scale = pow(2, bit) - 1
-    if isinstance(array, np.ndarray):
-        return np.floor(array * scale + 0.5)
-    elif isinstance(array, torch.Tensor):
-        return torch.floor(array * scale + 0.5)
+def quantize_from_norm_to_bit(array, bit, miss=False):  # 入力：0~1 出力：0~2^bits
+    if miss:
+        scale = pow(2, bit)
+        scale2 = pow(2, bit) - 1
+        if isinstance(array, np.ndarray):
+            return np.floor(array * scale + 0.5) / scale * scale2
+        elif isinstance(array, torch.Tensor):
+            return torch.floor(array * scale + 0.5) / scale * scale2
+    else:
+        scale = pow(2, bit) - 1
+        if isinstance(array, np.ndarray):
+            return np.floor(array * scale + 0.5)
+        elif isinstance(array, torch.Tensor):
+            return torch.floor(array * scale + 0.5)
 
 
 # 量子化関数
@@ -56,9 +64,14 @@ def quantize_clamp(tensor, num_bits=8):
 
 
 # fp用の量子化関数
-def quantize4fp(tensor, num_bits):
-    rounded_tensor = torch.floor(tensor * (pow(2, num_bits)-1) + 0.5)
-    return rounded_tensor / (pow(2, num_bits)-1)
+def quantize4fp(tensor, num_bits, miss=False):
+    if miss:
+        scale = pow(2, num_bits)
+        return torch.floor(tensor * scale + 0.5) / scale
+    else:
+        rounded_tensor = torch.floor(tensor * (pow(2, num_bits) - 1) + 0.5)
+        return rounded_tensor / (pow(2, num_bits) - 1)
+
 
 
 # 自然数に変換し、uint8にする

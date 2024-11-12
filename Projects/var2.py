@@ -32,7 +32,8 @@ over_write_variable_dict = {
     "TF_PRINT_LOG": "bool",
     "TF_PRINT_PSNR": "bool",
     "TF_WRITE_TIME": "bool",
-    "TF_WRITE_PSNR": "bool"
+    "TF_WRITE_PSNR": "bool",
+    "TF_USE_MISS_QUANTIZE": "bool",
 }
 
 # 圧縮する画像のパス
@@ -85,6 +86,7 @@ TF_PRINT_LOG = True                 # 一定間隔でlogをprintする
 TF_PRINT_PSNR = True                # 一定間隔でpsnrをprintする(PSNRはTensorboardに記録される)
 TF_WRITE_TIME = True                # Tensorboardに学習ステップごとの時間を記録する
 TF_WRITE_PSNR = True                # Tensorboardに学習ステップごとのPSNRを記録する
+TF_USE_MISS_QUANTIZE = False        # クオンタイズ関数を修正前のものを使う
 
 # コマンドラインから変数を取得し値を更新
 if len(sys.argv) > 1:

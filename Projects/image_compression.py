@@ -228,7 +228,7 @@ def train_models(fp):
         if epoch > NUM_EPOCHS * 0.95:
             if judge_freeze:
                 fp_freeze(fp)
-                fp = fp_all_quantize(fp, FP_BITS)
+                fp = fp_all_quantize(fp, FP_BITS, TF_USE_MISS_QUANTIZE)
                 judge_freeze = False
         start_epoch_time = time.perf_counter()
         inputs, coord, lod = random_crop_dataset(images, CROP_SIZE, NUM_CROPS, uniform_distribution, dim=FP_DIMENSION)
@@ -259,7 +259,7 @@ def train_models(fp):
         target = inputs.reshape(-1, 3)
         loss = criterion(decoder_output, target)
         if TF_WRITE_PSNR:
-            psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BITS), quantize_from_norm_to_bit(target, OUTPUT_BITS))
+            psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BITS, TF_USE_MISS_QUANTIZE), quantize_from_norm_to_bit(target, OUTPUT_BITS, TF_USE_MISS_QUANTIZE))
 
         # 逆伝播と最適化
         optimizer.zero_grad()
@@ -281,15 +281,15 @@ def train_models(fp):
 
         if (epoch + 1) % INTERVAL_PRINT == 0:
             if TF_PRINT_PSNR:
-                reconstructed = decode_image(fp_all_quantize(fp, FP_BITS), decoder, i, False)
+                reconstructed = decode_image(fp_all_quantize(fp, FP_BITS, TF_USE_MISS_QUANTIZE), decoder, i, False)
                 global reconstructed_totyuu
                 reconstructed_totyuu = reconstructed
                 if FP_DIMENSION == 2:
-                    all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BITS),
-                                              quantize_from_norm_to_bit(images[0].permute(1, 2, 0), OUTPUT_BITS))
+                    all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BITS, TF_USE_MISS_QUANTIZE),
+                                              quantize_from_norm_to_bit(images[0].permute(1, 2, 0), OUTPUT_BITS, TF_USE_MISS_QUANTIZE))
                 elif FP_DIMENSION == 3:
-                    all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BITS),
-                                              quantize_from_norm_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BITS))
+                    all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BITS, TF_USE_MISS_QUANTIZE),
+                                              quantize_from_norm_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BITS, TF_USE_MISS_QUANTIZE))
                 writer.add_scalar('PSNR/mip0', all_psnr, epoch + 1)
                 if TF_PRINT_LOG:
                     print_(f'Epoch [{epoch + 1}/{NUM_EPOCHS}], Loss: {loss.item():.4f} PSNR: {all_psnr:.4f}', PRINTLOG_PATH)
@@ -390,7 +390,7 @@ def process_images(train_model, fp):
         torch.save(compressed_fp,
                    make_filename_by_seq('feature_pyramid/{save_name}', f'{SAVE_NAME}_feature_pyramid.pth'))
 
-        fp = fp_all_quantize(fp, FP_BITS)
+        fp = fp_all_quantize(fp, FP_BITS, TF_USE_MISS_QUANTIZE)
     else:
         # デコーダの訓練済みパラメータのロード
         decoder.load_state_dict(torch.load(f'model/{SAVE_NAME}_decoder.pth'))
@@ -406,7 +406,7 @@ def process_images(train_model, fp):
         end = time.perf_counter()
         print_("展開時間：" + str(end - start), PRINTLOG_PATH)
 
-        reconstructed_image = quantize_from_norm_to_bit(reconstructed.cpu().numpy(), OUTPUT_BITS)
+        reconstructed_image = quantize_from_norm_to_bit(reconstructed.cpu().numpy(), OUTPUT_BITS, TF_USE_MISS_QUANTIZE)
         reconstructed_image = reconstructed_image.astype(bits2dtype_np(OUTPUT_BITS))
         reconstructed_images.append(reconstructed_image)
 
@@ -493,18 +493,26 @@ print(reconstructed_totyuu.cpu().numpy().dtype)
 
 print(reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32))
 
-print(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32))
-print(np.mean(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
-print(np.max(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
-print(np.min(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
-print(np.mean(np.abs(reconstructed_images[0] - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32))))
+print(reconstructed_images[0].astype(np.float32) - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32))
+print(np.mean(reconstructed_images[0].astype(np.float32) - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
+print(np.max(reconstructed_images[0].astype(np.float32) - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
+print(np.min(reconstructed_images[0].astype(np.float32) - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32)))
+print(np.mean(np.abs(reconstructed_images[0].astype(np.float32) - reconstructed_totyuu.cpu().numpy().astype(bits2dtype_np(OUTPUT_BITS)).astype(np.float32))))
+
+a = images[i].cpu().numpy().transpose(1, 2, 3, 0).astype(np.float32) * 255 - quantize_from_norm_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BITS).cpu().numpy().astype(np.float32)
+print(a)
+print(np.mean(a))
+print(np.max(a))
+print(np.min(a))
+print(np.mean(np.abs(a)))
 """
+
 for i in range(MAX_MIP_LEVEL + 1):
     if IMAGE_DIMENSION == 2:
-        psnr = calculate_psnr(images[i].cpu().numpy().transpose(1, 2, 0).astype(np.float32) * 255,
+        psnr = calculate_psnr(quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 0), OUTPUT_BITS, TF_USE_MISS_QUANTIZE),
                               reconstructed_images[i].astype(np.float32))
     elif IMAGE_DIMENSION == 3:
-        psnr = calculate_psnr(images[i].cpu().numpy().transpose(1, 2, 3, 0).astype(np.float32) * 255,
+        psnr = calculate_psnr(quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 3, 0), OUTPUT_BITS, TF_USE_MISS_QUANTIZE),
                               reconstructed_images[i].astype(np.float32))
     print_(f"psnr: {psnr}", PRINTLOG_PATH)
 

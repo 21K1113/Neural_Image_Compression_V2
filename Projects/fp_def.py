@@ -239,10 +239,10 @@ def fp_quantize(fp, fl, num_bits):
         fp[fl * 2 + 1] = quantize4fp(fp[fl * 2 + 1], num_bits)
 
 
-def fp_all_quantize(fp, num_bits):
+def fp_all_quantize(fp, num_bits, miss=False):
     quantized_fp = []
     for g in fp:
-        quantized_g = quantize4fp(g, num_bits)
+        quantized_g = quantize4fp(g, num_bits, miss)
         quantized_fp.append(quantized_g)
     return quantized_fp
 
