@@ -4,17 +4,23 @@ import os
 from utils import *
 
 over_write_variable_dict = {
-    "FP_BITS": "int",
+    "COMPRESSION_METHOD": "int",
+
     "NUM_EPOCHS": "int",
     "IMAGE_SIZE": "int",
     "IMAGE_3D_SIZE": "int",
     "MAX_MIP_LEVEL": "int",
-    "FEATURE_PYRAMID_CHANNELS": "int",
+
+    "FP_G0_BITS": "int",
+    "FEATURE_PYRAMID_G0_CHANNELS": "int",
+    "FEATURE_PYRAMID_SIZE_RATE": "int",
+    "FP_G1_BITS": "int",
+    "FEATURE_PYRAMID_G1_CHANNELS": "int",
+
     "PE_CHANNELS": "int",
     "IMAGE_PATH": "str",
     "PROJECT_NAME": "str",
     "IMAGE_DTYPE": "str",
-    "COMPRESSION_METHOD": "int",
     "MLP_NUM_DTYPE": "int",
     "UNIFORM_DISTRIBUTION_RATE": "float",
     "IMAGE_DIMENSION": "int",
@@ -25,6 +31,7 @@ over_write_variable_dict = {
     "NUM_CROPS": "int",
     "INTERVAL_PRINT": "int",
     "INTERVAL_SAVE_MODEL": "int",
+
     "TF_NO_MIP": "bool",
     "TF_USE_TRI_PE": "bool",
     "TF_TRAIN_MODEL": "bool",
@@ -66,11 +73,14 @@ IMAGE_DIMENSION = 2                 # 入力画像次元
 MAX_MIP_LEVEL = 9                   # 入力画像サイズのミップレベル
 IMAGE_BITS = 8                      # 入力画像のbit数（不完全）
 OUTPUT_BITS = 8                     # 出力画像のbit数（不完全）
-FEATURE_PYRAMID_CHANNELS = 12       # 特徴ピラミッドのチャンネル数
 PE_CHANNELS = 6                     # 位置エンコーディングの次元数
-
-FP_BITS = 8                         # 特徴ピラミッドの量子化ビット数
 HIDDEN_LAYER_CHANNELS = 64          # デコーダの中間層のノード数
+
+FEATURE_PYRAMID_G0_CHANNELS = 12    # 特徴ピラミッドのG0のチャンネル数
+FP_G0_BITS = 8                      # 特徴ピラミッドのG0の量子化ビット数
+FEATURE_PYRAMID_SIZE_RATE = 4       # 特徴ピラミッドのG0のサイズ比率（4なら1/4になる）
+FEATURE_PYRAMID_G1_CHANNELS = 12    # 特徴ピラミッドのG1のチャンネル数
+FP_G1_BITS = 8                      # 特徴ピラミッドのG0の量子化ビット数
 
 CROP_MIP_LEVEL = 8                  # ランダムクロップのクロップサイズ
 NUM_CROPS = 8                       # ランダムクロップの数（＝バッチ数）
@@ -83,7 +93,7 @@ TF_USE_TRI_PE = True                # 三角関数ではなく、三角波に基
 TF_TRAIN_MODEL = True               # 学習するかどうか（Falseのとき、学習済みモデルをロードする）
 TF_SHOW_RESULT = False              # 結果をmatplotlibかなんかで表示
 TF_PRINT_LOG = True                 # 一定間隔でlogをprintする
-TF_PRINT_PSNR = True                # 一定間隔でpsnrをprintする(PSNRはTensorboardに記録される)
+TF_PRINT_PSNR = True                # 一定間隔でpsnrをprintする
 TF_WRITE_TIME = True                # Tensorboardに学習ステップごとの時間を記録する
 TF_WRITE_PSNR = True                # Tensorboardに学習ステップごとのPSNRを記録する
 TF_USE_MISS_QUANTIZE = False        # クオンタイズ関数を修正前のものを使う
@@ -104,7 +114,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BASENAME = os.path.basename(IMAGE_PATH)
 IMAGE_EXT = os.path.splitext(IMAGE_PATH)[1][1:]
 IMAGE_DTYPE = dtype_from_ext(IMAGE_EXT)
-FEATURE_PYRAMID_SIZE = IMAGE_SIZE // 4      # 特徴ピラミッドのサイズ
+FEATURE_PYRAMID_SIZE = IMAGE_SIZE // FEATURE_PYRAMID_SIZE_RATE      # 特徴ピラミッドのサイズ
 FP_DIMENSION = IMAGE_DIMENSION
 if COMPRESSION_METHOD == 2:
     FP_DIMENSION = 2
@@ -120,6 +130,6 @@ print("DECODER_INPUT_CHANNELS:", DECODER_INPUT_CHANNELS)
 CROP_SIZE = pow(2, CROP_MIP_LEVEL)
 MLP_DTYPE = bits2dtype_torch(MLP_NUM_DTYPE, "float")
 
-SAVE_NAME = f"{PROJECT_NAME}_{DEVICE}_{BASENAME}_{MLP_NUM_DTYPE}_{TF_NO_MIP}_{TF_USE_TRI_PE}_{COMPRESSION_METHOD}_{NUM_EPOCHS}_{FP_BITS}"
+SAVE_NAME = f"{PROJECT_NAME}_{DEVICE}_{BASENAME}_{MLP_NUM_DTYPE}_{TF_NO_MIP}_{TF_USE_TRI_PE}_{COMPRESSION_METHOD}_{NUM_EPOCHS}_{FP_G0_BITS}"
 
 PRINTLOG_PATH = make_filename_by_seq("./printlog", f"{SAVE_NAME}.txt")

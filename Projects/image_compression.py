@@ -228,7 +228,7 @@ def train_models(fp):
         if epoch > NUM_EPOCHS * 0.95:
             if judge_freeze:
                 fp_freeze(fp)
-                fp = fp_all_quantize(fp, FP_BITS, TF_USE_MISS_QUANTIZE)
+                fp = fp_all_quantize(fp, FP_G0_BITS, FP_G1_BITS, TF_USE_MISS_QUANTIZE)
                 judge_freeze = False
         start_epoch_time = time.perf_counter()
         inputs, coord, lod = random_crop_dataset(images, CROP_SIZE, NUM_CROPS, uniform_distribution, dim=FP_DIMENSION)
@@ -248,7 +248,7 @@ def train_models(fp):
         # print(torch.any(torch.isinf(decoder_input)))
         if epoch < NUM_EPOCHS * 0.95:
             # 量子化誤差を考慮した一様分布ノイズを生成
-            noise = (torch.rand_like(decoder_input) - 0.5) / pow(2, FP_BITS)
+            noise = (torch.rand_like(decoder_input) - 0.5) / pow(2, FP_G0_BITS)
             decoder_input_noise = decoder_input + noise
         else:
             # decoder_input_noise = quantize_norm(decoder_input, num_bits)
@@ -267,7 +267,7 @@ def train_models(fp):
         optimizer.step()
         scheduler.step()
 
-        fp_quantize_clamp(fp, fl, FP_BITS)
+        fp_quantize_clamp(fp, fl, FP_G0_BITS)
 
         end_epoch_time = time.perf_counter()
 
@@ -281,7 +281,7 @@ def train_models(fp):
 
         if (epoch + 1) % INTERVAL_PRINT == 0:
             if TF_PRINT_PSNR:
-                reconstructed = decode_image(fp_all_quantize(fp, FP_BITS, TF_USE_MISS_QUANTIZE), decoder, i, False)
+                reconstructed = decode_image(fp_all_quantize(fp, FP_G0_BITS, TF_USE_MISS_QUANTIZE), decoder, i, False)
                 global reconstructed_totyuu
                 reconstructed_totyuu = reconstructed
                 if FP_DIMENSION == 2:
@@ -353,10 +353,12 @@ def decode_image(fp, arc_decoder, mip_level, pr=True, div_size=10):
 decoder = ColorDecoder().to(DEVICE)
 criterion = nn.MSELoss()
 if FP_DIMENSION == 2:
-    feature_pyramid, feature_pyramid_levels = create_pyramid(FEATURE_PYRAMID_SIZE, FEATURE_PYRAMID_CHANNELS, FP_BITS,
+    feature_pyramid, feature_pyramid_levels = create_pyramid(FEATURE_PYRAMID_SIZE, FEATURE_PYRAMID_G0_CHANNELS,
+                                                             FP_G0_BITS, FEATURE_PYRAMID_G1_CHANNELS, FP_G1_BITS,
                                                              DEVICE, MLP_DTYPE, TF_NO_MIP)
 elif FP_DIMENSION == 3:
-    feature_pyramid, feature_pyramid_levels = create_pyramid_3d(FEATURE_PYRAMID_SIZE, FEATURE_PYRAMID_CHANNELS, FP_BITS,
+    feature_pyramid, feature_pyramid_levels = create_pyramid_3d(FEATURE_PYRAMID_SIZE, FEATURE_PYRAMID_G0_CHANNELS,
+                                                                FP_G0_BITS, FEATURE_PYRAMID_G1_CHANNELS, FP_G1_BITS,
                                                                 DEVICE, MLP_DTYPE, TF_NO_MIP)
 for fp in feature_pyramid:
     safe_statistics(fp, PRINTLOG_PATH)
@@ -380,7 +382,7 @@ def process_images(train_model, fp):
         for g in fp:
             safe_statistics(g, PRINTLOG_PATH)
 
-        compressed_fp = fp_savable(fp, FP_BITS, bits2dtype_torch(FP_BITS))
+        compressed_fp = fp_savable(fp, FP_G0_BITS, bits2dtype_torch(FP_G0_BITS))
 
         # デコーダの保存
 
@@ -390,13 +392,13 @@ def process_images(train_model, fp):
         torch.save(compressed_fp,
                    make_filename_by_seq('feature_pyramid/{save_name}', f'{SAVE_NAME}_feature_pyramid.pth'))
 
-        fp = fp_all_quantize(fp, FP_BITS, TF_USE_MISS_QUANTIZE)
+        fp = fp_all_quantize(fp, FP_G0_BITS, TF_USE_MISS_QUANTIZE)
     else:
         # デコーダの訓練済みパラメータのロード
         decoder.load_state_dict(torch.load(f'model/{SAVE_NAME}_decoder.pth'))
         decoder.eval()
         compressed_fp = torch.load(f'feature_pyramid/{SAVE_NAME}_feature_pyramid.pth')
-        fp = fp_load(compressed_fp, FP_BITS, bits2dtype_torch(FP_BITS))
+        fp = fp_load(compressed_fp, FP_G0_BITS, bits2dtype_torch(FP_G0_BITS))
 
     reconstructed_images = []
     # デコード

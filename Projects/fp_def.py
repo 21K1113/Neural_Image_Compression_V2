@@ -34,47 +34,64 @@ def create_pyramid_mip_levels(image_size, base_size):
     return feature_pyramid_dict
 
 
-def create_pyramid(base_size, channels, num_bits, device, dtype, no_mip=False):
+def create_pyramid(base_size, g0_channels, g0_bits, g1_channels, g1_bits, device, dtype, no_mip=False):
     """
     ピラミッド構造の配列を作成する関数
+    :param g0_bits: G0の量子化ビット数
+    :param g0_channels: G0のチャンネル数
+    :param g1_bits: G1の量子化ビット数
+    :param g1_channels: G1のチャンネル数
     :param base_size: 最下層の配列のサイズ (base_size, base_size)
-    :param channels: 配列のチャンネル数
     :param levels: ピラミッドのレベル数
     :return: ピラミッド構造の配列（リスト形式）
     """
     levels = return_pyramid_levels(base_size)
     if no_mip:
         levels = 1
-    q_min = -(pow(2, num_bits) - 1) / pow(2, num_bits + 1)
-    q_max = 1 / 2
     pyramid = []
     for i in range(levels * 2):
         size = base_size // (2 ** i)
         # array = torch.randn(channels, size + 1, size + 1, device=device, requires_grad=True)
-        array = ((q_max - q_min) * torch.rand(channels, size + 1, size + 1, device=device, dtype=dtype) + q_min).requires_grad_(True)
-        pyramid.append(array)
+        if i % 2 == 0:
+            array = torch.rand(g0_channels, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
+            q_min = -(pow(2, g0_bits) - 1) / pow(2, g0_bits + 1)
+            q_max = 1 / 2
+        else:  # i % 2 == 1
+            array = torch.rand(g1_channels, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
+            q_min = -(pow(2, g1_bits) - 1) / pow(2, g1_bits + 1)
+            q_max = 1 / 2
+        grid = ((q_max - q_min) * array + q_min)
+        pyramid.append(grid)
     return pyramid, levels
 
 
-def create_pyramid_3d(base_size, channels, num_bits, device, dtype, no_mip=False):
+def create_pyramid_3d(base_size, g0_channels, g0_bits, g1_channels, g1_bits, device, dtype, no_mip=False):
     """
     ピラミッド構造の配列を作成する関数
+    :param g0_bits: G0の量子化ビット数
+    :param g0_channels: G0のチャンネル数
+    :param g1_bits: G1の量子化ビット数
+    :param g1_channels: G1のチャンネル数
     :param base_size: 最下層の配列のサイズ (base_size, base_size)
-    :param channels: 配列のチャンネル数
     :param levels: ピラミッドのレベル数
     :return: ピラミッド構造の配列（リスト形式）
     """
     levels = return_pyramid_levels(base_size)
     if no_mip:
         levels = 1
-    q_min = -(pow(2, num_bits) - 1) / pow(2, num_bits + 1)
-    q_max = 1 / 2
     pyramid = []
     for i in range(levels * 2):
         size = base_size // (2 ** i)
-        # array = torch.randn(channels, size + 1, size + 1, device=device, requires_grad=True)
-        array = ((q_max - q_min) * torch.rand(channels, size + 1, size + 1, size + 1, device=device, dtype=dtype) + q_min).requires_grad_(True)
-        pyramid.append(array)
+        if i % 2 == 0:
+            array = torch.rand(g0_channels, size + 1, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
+            q_min = -(pow(2, g0_bits) - 1) / pow(2, g0_bits + 1)
+            q_max = 1 / 2
+        else:  # i % 2 == 1
+            array = torch.rand(g1_channels, size + 1, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
+            q_min = -(pow(2, g1_bits) - 1) / pow(2, g1_bits + 1)
+            q_max = 1 / 2
+        grid = ((q_max - q_min) * array + q_min)
+        pyramid.append(grid)
     return pyramid, levels
 
 
@@ -239,11 +256,16 @@ def fp_quantize(fp, fl, num_bits):
         fp[fl * 2 + 1] = quantize4fp(fp[fl * 2 + 1], num_bits)
 
 
-def fp_all_quantize(fp, num_bits, miss=False):
+def fp_all_quantize(fp, g0_bits, g1_bits, miss=False):
     quantized_fp = []
+    count = 0
     for g in fp:
-        quantized_g = quantize4fp(g, num_bits, miss)
+        if count % 2 == 0:
+            quantized_g = quantize4fp(g, g0_bits, miss)
+        else:  # count % 2 == 1
+            quantized_g = quantize4fp(g, g1_bits, miss)
         quantized_fp.append(quantized_g)
+        count += 1
     return quantized_fp
 
 
