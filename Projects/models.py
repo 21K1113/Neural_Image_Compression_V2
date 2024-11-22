@@ -82,8 +82,8 @@ def save4fp(tensor, num_bits, dtype):
 
 
 # uint8のやつを元の配列に戻す
-def load4fp(tensor, num_bits, dtype):
-    float_tensor = tensor.to(dtype)
+def load4fp(tensor, num_bits, mlt_dtype):
+    float_tensor = tensor.to(mlt_dtype)
     zero_center_tensor = float_tensor - pow(2, num_bits - 1) + 1
     return zero_center_tensor / (pow(2, num_bits)-1)
 

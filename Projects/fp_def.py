@@ -256,31 +256,38 @@ def fp_quantize(fp, fl, num_bits):
         fp[fl * 2 + 1] = quantize4fp(fp[fl * 2 + 1], num_bits)
 
 
+# fpをすべて量子化する  float -> float
 def fp_all_quantize(fp, g0_bits, g1_bits, miss=False):
     quantized_fp = []
-    count = 0
-    for g in fp:
-        if count % 2 == 0:
+    for i, g in enumerate(fp):
+        if i % 2 == 0:
             quantized_g = quantize4fp(g, g0_bits, miss)
-        else:  # count % 2 == 1
+        else:  # i % 2 == 1
             quantized_g = quantize4fp(g, g1_bits, miss)
         quantized_fp.append(quantized_g)
-        count += 1
     return quantized_fp
 
 
-def fp_savable(fp, num_bits, dtype):
+# fpをすべて量子化する  float -> arg dtype
+def fp_savable(fp, g0_bits, g0_dtype, g1_bits, g1_dtype):
     compressed_fp = []
-    for g in fp:
-        compressed_g = save4fp(g, num_bits, dtype)
+    for i, g in enumerate(fp):
+        if i % 2 == 0:
+            compressed_g = save4fp(g, g0_bits, g0_dtype)
+        else:  # i % 2 == 1
+            compressed_g = save4fp(g, g1_bits, g1_dtype)
         compressed_fp.append(compressed_g)
     return compressed_fp
 
 
-def fp_load(compressed_fp, num_bits, dtype):
+# fpをすべて量子化する  arg dtype -> float
+def fp_load(compressed_fp, g0_bits, g1_bits, mlt_dtype):
     fp = []
-    for compressed_g in compressed_fp:
-        g = load4fp(compressed_g, num_bits, dtype)
+    for i, compressed_g in enumerate(compressed_fp):
+        if i % 2 == 0:
+            g = load4fp(compressed_g, g0_bits, mlt_dtype)
+        else:
+            g = load4fp(compressed_g, g1_bits, mlt_dtype)
         fp.append(g)
     return fp
 

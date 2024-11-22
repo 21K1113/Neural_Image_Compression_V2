@@ -69,7 +69,7 @@ class ColorDecoder(nn.Module):
         return x
 
 
-def create_decoder_input_2d(fp, coord, num_crops, fl, mip_level):
+def create_decoder_input_2d(fp, coord, num_crops, fl, mip_level, add_noise):
     # fp:feature_pyramid
     # fl:feature_level
     # G0:fp[fl*2]
@@ -96,6 +96,8 @@ def create_decoder_input_2d(fp, coord, num_crops, fl, mip_level):
             torch.cat([g0_0, g0_1, g0_2, g0_3, g1_0 + g1_1 + g1_2 + g1_3, pe, lod_tensor * mip_level], dim=0)
         )
     decoder_input = torch.cat(decoder_input, dim=1)
+    if add_noise:
+        print(decoder_input.shape)
     # end = time.perf_counter()
     # print(end - start)
     return decoder_input.T
@@ -236,14 +238,18 @@ def train_models(fp):
         # print(convert_coordinate_start(device, coord, 8, 8))
         fl = feature_pyramid_mip_levels_dict[lod]
         # print(lod, fl)
+        if epoch < NUM_EPOCHS * 0.95:
+            add_noise = True
+        else:
+            add_noise = False
 
         if FP_DIMENSION == 2:
-            decoder_input = create_decoder_input_2d(fp, coord, NUM_CROPS, fl, lod)
+            decoder_input = create_decoder_input_2d(fp, coord, NUM_CROPS, fl, lod, add_noise)
         elif FP_DIMENSION == 3:
             if COMPRESSION_METHOD == 4:
-                decoder_input = create_decoder_input_3d_v2(fp, coord, NUM_CROPS, fl, lod)
+                decoder_input = create_decoder_input_3d_v2(fp, coord, NUM_CROPS, fl, lod, add_noise)
             else:
-                decoder_input = create_decoder_input_3d(fp, coord, NUM_CROPS, fl, lod)
+                decoder_input = create_decoder_input_3d(fp, coord, NUM_CROPS, fl, lod, add_noise)
 
         # print(torch.any(torch.isinf(decoder_input)))
         if epoch < NUM_EPOCHS * 0.95:
@@ -281,7 +287,7 @@ def train_models(fp):
 
         if (epoch + 1) % INTERVAL_PRINT == 0:
             if TF_PRINT_PSNR:
-                reconstructed = decode_image(fp_all_quantize(fp, FP_G0_BITS, TF_USE_MISS_QUANTIZE), decoder, i, False)
+                reconstructed = decode_image(fp_all_quantize(fp, FP_G0_BITS, FP_G1_BITS, TF_USE_MISS_QUANTIZE), decoder, i, False)
                 global reconstructed_totyuu
                 reconstructed_totyuu = reconstructed
                 if FP_DIMENSION == 2:
@@ -382,7 +388,8 @@ def process_images(train_model, fp):
         for g in fp:
             safe_statistics(g, PRINTLOG_PATH)
 
-        compressed_fp = fp_savable(fp, FP_G0_BITS, bits2dtype_torch(FP_G0_BITS))
+        compressed_fp = fp_savable(fp, FP_G0_BITS, bits2dtype_torch(FP_G0_BITS),
+                                   FP_G1_BITS, bits2dtype_torch(FP_G1_BITS))
 
         # デコーダの保存
 
@@ -392,13 +399,13 @@ def process_images(train_model, fp):
         torch.save(compressed_fp,
                    make_filename_by_seq('feature_pyramid/{save_name}', f'{SAVE_NAME}_feature_pyramid.pth'))
 
-        fp = fp_all_quantize(fp, FP_G0_BITS, TF_USE_MISS_QUANTIZE)
+        fp = fp_all_quantize(fp, FP_G0_BITS, FP_G1_BITS, TF_USE_MISS_QUANTIZE)
     else:
         # デコーダの訓練済みパラメータのロード
         decoder.load_state_dict(torch.load(f'model/{SAVE_NAME}_decoder.pth'))
         decoder.eval()
         compressed_fp = torch.load(f'feature_pyramid/{SAVE_NAME}_feature_pyramid.pth')
-        fp = fp_load(compressed_fp, FP_G0_BITS, bits2dtype_torch(FP_G0_BITS))
+        fp = fp_load(compressed_fp, FP_G0_BITS, FP_G1_BITS, MLP_DTYPE)
 
     reconstructed_images = []
     # デコード
