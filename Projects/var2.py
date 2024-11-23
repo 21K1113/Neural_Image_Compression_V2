@@ -90,13 +90,14 @@ INTERVAL_SAVE_MODEL = 100000        # 学習途中のモデルを保存する間
 
 TF_NO_MIP = True                    # mipmapを生成しない
 TF_USE_TRI_PE = True                # 三角関数ではなく、三角波に基づいた位置エンコーディングを使用する
+TF_USE_MISS_QUANTIZE = False        # クオンタイズ関数を修正前のものを使う
 TF_TRAIN_MODEL = True               # 学習するかどうか（Falseのとき、学習済みモデルをロードする）
+
 TF_SHOW_RESULT = False              # 結果をmatplotlibかなんかで表示
 TF_PRINT_LOG = True                 # 一定間隔でlogをprintする
 TF_PRINT_PSNR = True                # 一定間隔でpsnrをprintする
 TF_WRITE_TIME = True                # Tensorboardに学習ステップごとの時間を記録する
 TF_WRITE_PSNR = True                # Tensorboardに学習ステップごとのPSNRを記録する
-TF_USE_MISS_QUANTIZE = False        # クオンタイズ関数を修正前のものを使う
 
 # コマンドラインから変数を取得し値を更新
 if len(sys.argv) > 1:

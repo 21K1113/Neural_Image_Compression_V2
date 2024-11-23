@@ -156,6 +156,8 @@ def safe_statistics(tensor, printlog_path):
     if valid_tensor.numel() == 0:
         print_("No valid numbers in the tensor.", printlog_path)
     else:
+        # サイズ
+        print_(f"Shape: {tensor.shape}", printlog_path)
         # 最大値
         max_val = torch.max(valid_tensor)
         print_(f"Max: {max_val.item()}", printlog_path)

@@ -56,12 +56,14 @@ def create_pyramid(base_size, g0_channels, g0_bits, g1_channels, g1_bits, device
             array = torch.rand(g0_channels, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
             q_min = -(pow(2, g0_bits) - 1) / pow(2, g0_bits + 1)
             q_max = 1 / 2
+            grid = ((q_max - q_min) * array + q_min)
+            pyramid.append(grid)
         else:  # i % 2 == 1
             array = torch.rand(g1_channels, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
             q_min = -(pow(2, g1_bits) - 1) / pow(2, g1_bits + 1)
             q_max = 1 / 2
-        grid = ((q_max - q_min) * array + q_min)
-        pyramid.append(grid)
+            grid = ((q_max - q_min) * array + q_min)
+            pyramid.append(grid)
     return pyramid, levels
 
 
@@ -86,12 +88,14 @@ def create_pyramid_3d(base_size, g0_channels, g0_bits, g1_channels, g1_bits, dev
             array = torch.rand(g0_channels, size + 1, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
             q_min = -(pow(2, g0_bits) - 1) / pow(2, g0_bits + 1)
             q_max = 1 / 2
+            grid = ((q_max - q_min) * array + q_min)
+            pyramid.append(grid)
         else:  # i % 2 == 1
             array = torch.rand(g1_channels, size + 1, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
             q_min = -(pow(2, g1_bits) - 1) / pow(2, g1_bits + 1)
             q_max = 1 / 2
-        grid = ((q_max - q_min) * array + q_min)
-        pyramid.append(grid)
+            grid = ((q_max - q_min) * array + q_min)
+            pyramid.append(grid)
     return pyramid, levels
 
 

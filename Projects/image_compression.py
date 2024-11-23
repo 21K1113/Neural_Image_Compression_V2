@@ -103,7 +103,7 @@ def create_decoder_input_2d(fp, coord, num_crops, fl, mip_level, add_noise):
     return decoder_input.T
 
 
-def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level):
+def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level, add_noise):
     # fp:feature_pyramid
     # fl:feature_level
     # G0:fp[fl*2]
@@ -137,7 +137,7 @@ def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level):
     return decoder_input.T
 
 
-def create_decoder_input_3d_v2(fp, coord, num_crops, fl, mip_level):
+def create_decoder_input_3d_v2(fp, coord, num_crops, fl, mip_level, add_noise):
     # fp:feature_pyramid
     # fl:feature_level
     # G0:fp[fl*2]
@@ -165,6 +165,8 @@ def create_decoder_input_3d_v2(fp, coord, num_crops, fl, mip_level):
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
         )
     decoder_input = torch.cat(decoder_input, dim=1)
+    if add_noise:
+        print(decoder_input.shape)
     # end = time.perf_counter()
     # print(end - start)
     return decoder_input.T
