@@ -53,16 +53,16 @@ def create_pyramid(base_size, g0_channels, g0_bits, g1_channels, g1_bits, device
         size = base_size // (2 ** i)
         # array = torch.randn(channels, size + 1, size + 1, device=device, requires_grad=True)
         if i % 2 == 0:
-            array = torch.rand(g0_channels, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
+            array = torch.rand(g0_channels, size + 1, size + 1, device=device, dtype=dtype)
             q_min = -(pow(2, g0_bits) - 1) / pow(2, g0_bits + 1)
             q_max = 1 / 2
-            grid = ((q_max - q_min) * array + q_min)
+            grid = ((q_max - q_min) * array + q_min).requires_grad_(True)
             pyramid.append(grid)
         else:  # i % 2 == 1
-            array = torch.rand(g1_channels, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
+            array = torch.rand(g1_channels, size + 1, size + 1, device=device, dtype=dtype)
             q_min = -(pow(2, g1_bits) - 1) / pow(2, g1_bits + 1)
             q_max = 1 / 2
-            grid = ((q_max - q_min) * array + q_min)
+            grid = ((q_max - q_min) * array + q_min).requires_grad_(True)
             pyramid.append(grid)
     return pyramid, levels
 
@@ -78,24 +78,28 @@ def create_pyramid_3d(base_size, g0_channels, g0_bits, g1_channels, g1_bits, dev
     :param levels: ピラミッドのレベル数
     :return: ピラミッド構造の配列（リスト形式）
     """
+
     levels = return_pyramid_levels(base_size)
     if no_mip:
         levels = 1
     pyramid = []
     for i in range(levels * 2):
         size = base_size // (2 ** i)
+        
         if i % 2 == 0:
-            array = torch.rand(g0_channels, size + 1, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
+            array = torch.rand(g0_channels, size + 1, size + 1, size + 1, device=device, dtype=dtype)
             q_min = -(pow(2, g0_bits) - 1) / pow(2, g0_bits + 1)
             q_max = 1 / 2
-            grid = ((q_max - q_min) * array + q_min)
+            grid = ((q_max - q_min) * array + q_min).requires_grad_(True)
             pyramid.append(grid)
         else:  # i % 2 == 1
-            array = torch.rand(g1_channels, size + 1, size + 1, size + 1, device=device, dtype=dtype).requires_grad_(True)
+            array = torch.rand(g1_channels, size + 1, size + 1, size + 1, device=device, dtype=dtype)
             q_min = -(pow(2, g1_bits) - 1) / pow(2, g1_bits + 1)
             q_max = 1 / 2
-            grid = ((q_max - q_min) * array + q_min)
+            grid = ((q_max - q_min) * array + q_min).requires_grad_(True)
             pyramid.append(grid)
+            
+
     return pyramid, levels
 
 

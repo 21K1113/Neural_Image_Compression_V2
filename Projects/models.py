@@ -58,8 +58,8 @@ def quantize_from_bit_to_norm(array, bit):  # 入力：0~2^bits 出力：0~1
 
 
 def quantize_clamp(tensor, num_bits=8):
-    q_min = -(pow(2, num_bits)-1)/pow(2, num_bits+1)
-    q_max = 1/2
+    q_min = -(pow(2, num_bits) - 1) / pow(2, num_bits + 1)
+    q_max = 1 / 2
     return torch.clamp(tensor, min=q_min, max=q_max)
 
 
