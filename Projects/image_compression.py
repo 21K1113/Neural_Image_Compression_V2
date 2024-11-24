@@ -97,7 +97,12 @@ def create_decoder_input_2d(fp, coord, num_crops, fl, mip_level, add_noise):
         )
     decoder_input = torch.cat(decoder_input, dim=1)
     if add_noise:
-        print(decoder_input.shape)
+        fp_g0_c = FEATURE_PYRAMID_G0_CHANNELS
+        fp_g1_c = FEATURE_PYRAMID_G1_CHANNELS
+        decoder_input[0:4 * fp_g0_c] += (torch.rand_like(decoder_input[0:4 * fp_g0_c]) - 0.5) / pow(2, FP_G0_BITS)
+        decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c] += (torch.rand_like(
+            decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c]) - 0.5) / pow(2, FP_G1_BITS)
+
     # end = time.perf_counter()
     # print(end - start)
     return decoder_input.T
@@ -132,6 +137,13 @@ def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level, add_noise):
         )
     # print(g0_0.dtype, g0_1.dtype, g0_2.dtype, g0_3.dtype, g0_4.dtype, g0_5.dtype, g0_6.dtype, g0_7.dtype, g1_0.dtype, g1_1.dtype, g1_2.dtype, g1_3.dtype, g1_4.dtype, g1_5.dtype, g1_6.dtype, g1_7.dtype, pe.dtype)
     decoder_input = torch.cat(decoder_input, dim=1)
+    if add_noise:
+        fp_g0_c = FEATURE_PYRAMID_G0_CHANNELS
+        fp_g1_c = FEATURE_PYRAMID_G1_CHANNELS
+        decoder_input[0:4 * fp_g0_c] += (torch.rand_like(decoder_input[0:4 * fp_g0_c]) - 0.5) / pow(2, FP_G0_BITS)
+        decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c] += (torch.rand_like(
+            decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c]) - 0.5) / pow(2, FP_G1_BITS)
+
     # end = time.perf_counter()
     # print(end - start)
     return decoder_input.T
@@ -168,10 +180,8 @@ def create_decoder_input_3d_v2(fp, coord, num_crops, fl, mip_level, add_noise):
     if add_noise:
         fp_g0_c = FEATURE_PYRAMID_G0_CHANNELS
         fp_g1_c = FEATURE_PYRAMID_G1_CHANNELS
-        print(decoder_input[0:4*fp_g0_c].shape)
-        print(decoder_input[4*fp_g0_c:4*fp_g0_c+fp_g1_c].shape)
         decoder_input[0:4*fp_g0_c] += (torch.rand_like(decoder_input[0:4*fp_g0_c]) - 0.5) / pow(2, FP_G0_BITS)
-        decoder_input[4*fp_g0_c:4*fp_g0_c+fp_g1_c] += (torch.rand_like(decoder_input[4*fp_g0_c:4*fp_g0_c+fp_g1_c]) - 0.5) / pow(2, FP_G0_BITS)
+        decoder_input[4*fp_g0_c:4*fp_g0_c+fp_g1_c] += (torch.rand_like(decoder_input[4*fp_g0_c:4*fp_g0_c+fp_g1_c]) - 0.5) / pow(2, FP_G1_BITS)
     # end = time.perf_counter()
     # print(end - start)
     return decoder_input.T
