@@ -166,7 +166,9 @@ def create_decoder_input_3d_v2(fp, coord, num_crops, fl, mip_level, add_noise):
         )
     decoder_input = torch.cat(decoder_input, dim=1)
     if add_noise:
-        print(decoder_input.shape)
+        print(decoder_input[0:4].shape)
+    decoder_input[0:4] += (torch.rand_like(decoder_input[0:4]) - 0.5) / pow(2, FP_G0_BITS)
+    decoder_input[4:5] += (torch.rand_like(decoder_input[4:5]) - 0.5) / pow(2, FP_G0_BITS)
     # end = time.perf_counter()
     # print(end - start)
     return decoder_input.T
