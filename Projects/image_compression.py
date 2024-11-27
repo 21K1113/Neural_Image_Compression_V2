@@ -22,8 +22,6 @@ print_(datetime.datetime.now(), PRINTLOG_PATH)
 for var in over_write_variable_dict.keys():
     print_(f"{var} : {eval(var)}", PRINTLOG_PATH)
 
-reconstructed_totyuu = None
-
 def random_crop_dataset(datasets, crop_size, num_crops, uniform_distribution, dim=2):
     crops = []
     coord = []
@@ -305,8 +303,6 @@ def train_models(fp):
         if (epoch + 1) % INTERVAL_PRINT == 0:
             if TF_PRINT_PSNR:
                 reconstructed = decode_image(fp_all_quantize(fp, FP_G0_BITS, FP_G1_BITS, TF_USE_MISS_QUANTIZE), decoder, i, False)
-                global reconstructed_totyuu
-                reconstructed_totyuu = reconstructed
                 if FP_DIMENSION == 2:
                     all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BITS, TF_USE_MISS_QUANTIZE),
                                               quantize_from_norm_to_bit(images[0].permute(1, 2, 0), OUTPUT_BITS, TF_USE_MISS_QUANTIZE))
