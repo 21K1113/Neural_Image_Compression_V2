@@ -39,37 +39,36 @@ def create_pyramid_mip_levels(image_size, fp_size_rate):
     return feature_pyramid_dict
 
 
-def create_pyramid(base_size, g0_channels, g0_bits, g1_channels, g1_bits, device, dtype, no_mip=False):
+def create_pyramid(base_size, g0_channel, g0_bit, g1_channel, g1_bit, device, dtype, no_mip=False):
     """
     ピラミッド構造の配列を作成する関数
-    :param g0_bits: G0の量子化ビット数
-    :param g0_channels: G0のチャンネル数
-    :param g1_bits: G1の量子化ビット数
-    :param g1_channels: G1のチャンネル数
+    :param g0_bit: G0の量子化ビット数
+    :param g0_channel: G0のチャンネル数
+    :param g1_bit: G1の量子化ビット数
+    :param g1_channel: G1のチャンネル数
     :param base_size: 最下層の配列のサイズ (base_size, base_size)
-    :param levels: ピラミッドのレベル数
     :return: ピラミッド構造の配列（リスト形式）
     """
-    levels = return_pyramid_levels(base_size)
+    fp_level = return_pyramid_levels(base_size)
     if no_mip:
-        levels = 1
+        fp_level = 1
     pyramid = []
-    for i in range(levels * 2):
+    for i in range(fp_level * 2):
         size = base_size // (2 ** i)
         # array = torch.randn(channels, size + 1, size + 1, device=device, requires_grad=True)
         if i % 2 == 0:
-            array = torch.rand(g0_channels, size + 1, size + 1, device=device, dtype=dtype)
-            q_min = -(pow(2, g0_bits) - 1) / pow(2, g0_bits + 1)
+            array = torch.rand(g0_channel, size + 1, size + 1, device=device, dtype=dtype)
+            q_min = -(pow(2, g0_bit) - 1) / pow(2, g0_bit + 1)
             q_max = 1 / 2
             grid = ((q_max - q_min) * array + q_min).requires_grad_(True)
             pyramid.append(grid)
         else:  # i % 2 == 1
-            array = torch.rand(g1_channels, size + 1, size + 1, device=device, dtype=dtype)
-            q_min = -(pow(2, g1_bits) - 1) / pow(2, g1_bits + 1)
+            array = torch.rand(g1_channel, size + 1, size + 1, device=device, dtype=dtype)
+            q_min = -(pow(2, g1_bit) - 1) / pow(2, g1_bit + 1)
             q_max = 1 / 2
             grid = ((q_max - q_min) * array + q_min).requires_grad_(True)
             pyramid.append(grid)
-    return pyramid, levels
+    return pyramid, fp_level
 
 
 def create_pyramid_3d(base_size, g0_channels, g0_bits, g1_channels, g1_bits, device, dtype, no_mip=False):

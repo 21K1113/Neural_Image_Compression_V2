@@ -6,27 +6,28 @@ from utils import *
 over_write_variable_dict = {
     "COMPRESSION_METHOD": "int",
 
-    "NUM_EPOCHS": "int",
+    "NUM_EPOCH": "int",
     "IMAGE_SIZE": "int",
     "IMAGE_3D_SIZE": "int",
     "MAX_MIP_LEVEL": "int",
 
-    "FP_G0_BITS": "int",
-    "FEATURE_PYRAMID_G0_CHANNELS": "int",
+    "FP_G0_BIT": "int",
+    "FEATURE_PYRAMID_G0_CHANNEL": "int",
     "FEATURE_PYRAMID_SIZE_RATE": "int",
-    "FP_G1_BITS": "int",
-    "FEATURE_PYRAMID_G1_CHANNELS": "int",
+    "FP_G1_BIT": "int",
+    "FEATURE_PYRAMID_G1_CHANNEL": "int",
 
-    "PE_CHANNELS": "int",
     "IMAGE_PATH": "str",
     "PROJECT_NAME": "str",
     "IMAGE_DTYPE": "str",
+
     "MLP_NUM_DTYPE": "int",
     "UNIFORM_DISTRIBUTION_RATE": "float",
     "IMAGE_DIMENSION": "int",
-    "IMAGE_BITS": "int",
-    "OUTPUT_BITS": "int",
-    "HIDDEN_LAYER_CHANNELS": "int",
+    "IMAGE_BIT": "int",
+    "OUTPUT_BIT": "int",
+    "PE_CHANNEL": "int",
+    "HIDDEN_LAYER_CHANNEL": "int",
     "CROP_MIP_LEVEL": "int",
     "NUM_CROPS": "int",
     "INTERVAL_PRINT": "int",
@@ -65,22 +66,22 @@ COMPRESSION_METHOD = 1
 # 全体のbit数
 MLP_NUM_DTYPE = 32
 
-NUM_EPOCHS = 1000                   # 学習回数
+NUM_EPOCH = 1000                    # 学習回数
 UNIFORM_DISTRIBUTION_RATE = 0.05    # 一様分布からサンプリングする割合
 IMAGE_3D_SIZE = 64                  # 平坦化時のみ使用する
 IMAGE_SIZE = 512                    # 入力画像サイズ
 IMAGE_DIMENSION = 2                 # 入力画像次元
 MAX_MIP_LEVEL = 9                   # 入力画像サイズのミップレベル
-IMAGE_BITS = 8                      # 入力画像のbit数（不完全）
-OUTPUT_BITS = 8                     # 出力画像のbit数（不完全）
-PE_CHANNELS = 6                     # 位置エンコーディングの次元数
-HIDDEN_LAYER_CHANNELS = 64          # デコーダの中間層のノード数
+IMAGE_BIT = 8                       # 入力画像のbit数（不完全）
+OUTPUT_BIT = 8                      # 出力画像のbit数（不完全）
+PE_CHANNEL = 6                      # 位置エンコーディングの次元数
+HIDDEN_LAYER_CHANNEL = 64           # デコーダの中間層のノード数
 
-FEATURE_PYRAMID_G0_CHANNELS = 12    # 特徴ピラミッドのG0のチャンネル数
-FP_G0_BITS = 8                      # 特徴ピラミッドのG0の量子化ビット数
+FEATURE_PYRAMID_G0_CHANNEL = 12     # 特徴ピラミッドのG0のチャンネル数
+FP_G0_BIT = 8                       # 特徴ピラミッドのG0の量子化ビット数
 FEATURE_PYRAMID_SIZE_RATE = 4       # 特徴ピラミッドのG0のサイズ比率（4なら1/4になる）
-FEATURE_PYRAMID_G1_CHANNELS = 12    # 特徴ピラミッドのG1のチャンネル数
-FP_G1_BITS = 8                      # 特徴ピラミッドのG0の量子化ビット数
+FEATURE_PYRAMID_G1_CHANNEL = 12     # 特徴ピラミッドのG1のチャンネル数
+FP_G1_BIT = 8                       # 特徴ピラミッドのG0の量子化ビット数
 
 CROP_MIP_LEVEL = 8                  # ランダムクロップのクロップサイズ
 NUM_CROPS = 8                       # ランダムクロップの数（＝バッチ数）
@@ -124,16 +125,16 @@ if COMPRESSION_METHOD == 2:
 
 if TF_NO_MIP:
     MAX_MIP_LEVEL = 0
-DECODER_INPUT_CHANNELS = FEATURE_PYRAMID_G0_CHANNELS * pow(2, FP_DIMENSION) + FEATURE_PYRAMID_G1_CHANNELS + PE_CHANNELS * FP_DIMENSION + 1
+DECODER_INPUT_CHANNEL = FEATURE_PYRAMID_G0_CHANNEL * pow(2, FP_DIMENSION) + FEATURE_PYRAMID_G1_CHANNEL + PE_CHANNEL * FP_DIMENSION + 1
 if COMPRESSION_METHOD == 2:
-    DECODER_INPUT_CHANNELS = FEATURE_PYRAMID_G0_CHANNELS * pow(2, FP_DIMENSION) + FEATURE_PYRAMID_G1_CHANNELS + PE_CHANNELS * FP_DIMENSION + 1
+    DECODER_INPUT_CHANNEL = FEATURE_PYRAMID_G0_CHANNEL * pow(2, FP_DIMENSION) + FEATURE_PYRAMID_G1_CHANNEL + PE_CHANNEL * FP_DIMENSION + 1
 if COMPRESSION_METHOD == 4:
-    DECODER_INPUT_CHANNELS = FEATURE_PYRAMID_G0_CHANNELS * pow(2, 2) + FEATURE_PYRAMID_G1_CHANNELS + PE_CHANNELS * FP_DIMENSION + 1
+    DECODER_INPUT_CHANNEL = FEATURE_PYRAMID_G0_CHANNEL * pow(2, 2) + FEATURE_PYRAMID_G1_CHANNEL + PE_CHANNEL * FP_DIMENSION + 1
 
-print("DECODER_INPUT_CHANNELS:", DECODER_INPUT_CHANNELS)
+print("DECODER_INPUT_CHANNEL:", DECODER_INPUT_CHANNEL)
 CROP_SIZE = pow(2, CROP_MIP_LEVEL)
 MLP_DTYPE = bits2dtype_torch(MLP_NUM_DTYPE, "float")
 
-SAVE_NAME = f"{PROJECT_NAME}_{DEVICE}_{BASENAME}_{MLP_NUM_DTYPE}_{TF_NO_MIP}_{TF_USE_TRI_PE}_{COMPRESSION_METHOD}_{NUM_EPOCHS}_{FP_G0_BITS}"
+SAVE_NAME = f"{PROJECT_NAME}_{DEVICE}_{BASENAME}_{TF_NO_MIP}_{COMPRESSION_METHOD}_{NUM_EPOCH}_{FEATURE_PYRAMID_SIZE_RATE}_{FEATURE_PYRAMID_G0_CHANNEL}_{FP_G0_BIT}_{FEATURE_PYRAMID_G1_CHANNEL}_{FP_G1_BIT}"
 
 PRINTLOG_PATH = make_filename_by_seq("./printlog", f"{SAVE_NAME}.txt")
