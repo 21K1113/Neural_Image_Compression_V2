@@ -266,16 +266,7 @@ def train_models(fp):
             else:
                 decoder_input = create_decoder_input_3d(fp, coord, NUM_CROP, fl, lod, add_noise)
 
-        # print(torch.any(torch.isinf(decoder_input)))
-        if epoch < NUM_EPOCH * 0.95:
-            # 量子化誤差を考慮した一様分布ノイズを生成
-            noise = (torch.rand_like(decoder_input) - 0.5) / pow(2, FP_G0_BIT)
-            decoder_input_noise = decoder_input + noise
-        else:
-            # decoder_input_noise = quantize_norm(decoder_input, num_bits)
-            decoder_input_noise = decoder_input
-
-        decoder_output = decoder(decoder_input_noise)
+        decoder_output = decoder(decoder_input)
         # decoder_output = decoder(decoder_input)
         target = inputs.reshape(-1, 3)
         loss = criterion(decoder_output, target)
