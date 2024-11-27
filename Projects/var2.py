@@ -29,7 +29,7 @@ over_write_variable_dict = {
     "PE_CHANNEL": "int",
     "HIDDEN_LAYER_CHANNEL": "int",
     "CROP_MIP_LEVEL": "int",
-    "NUM_CROPS": "int",
+    "NUM_CROP": "int",
     "INTERVAL_PRINT": "int",
     "INTERVAL_SAVE_MODEL": "int",
 
@@ -84,7 +84,7 @@ FEATURE_PYRAMID_G1_CHANNEL = 12     # 特徴ピラミッドのG1のチャンネ�
 FP_G1_BIT = 8                       # 特徴ピラミッドのG0の量子化ビット数
 
 CROP_MIP_LEVEL = 8                  # ランダムクロップのクロップサイズ
-NUM_CROPS = 8                       # ランダムクロップの数（＝バッチ数）
+NUM_CROP = 8                        # ランダムクロップの数（＝バッチ数）
 
 INTERVAL_PRINT = 100                # logやPSNRのprintをする間隔
 INTERVAL_SAVE_MODEL = 100000        # 学習途中のモデルを保存する間隔

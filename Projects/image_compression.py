@@ -54,11 +54,11 @@ class ColorDecoder(nn.Module):
     def __init__(self):
         super(ColorDecoder, self).__init__()
         self.decoder = nn.Sequential(
-            nn.Linear(DECODER_INPUT_CHANNEL, HIDDEN_LAYER_CHANNELS),
+            nn.Linear(DECODER_INPUT_CHANNEL, HIDDEN_LAYER_CHANNEL),
             nn.GELU(),
-            nn.Linear(HIDDEN_LAYER_CHANNELS, HIDDEN_LAYER_CHANNELS),
+            nn.Linear(HIDDEN_LAYER_CHANNEL, HIDDEN_LAYER_CHANNEL),
             nn.GELU(),
-            nn.Linear(HIDDEN_LAYER_CHANNELS, 3),
+            nn.Linear(HIDDEN_LAYER_CHANNEL, 3),
             nn.Sigmoid()
         )
 
@@ -248,7 +248,7 @@ def train_models(fp):
                 fp = fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT, TF_USE_MISS_QUANTIZE)
                 judge_freeze = False
         start_epoch_time = time.perf_counter()
-        inputs, coord, lod = random_crop_dataset(images, CROP_SIZE, NUM_CROPS, uniform_distribution, dim=FP_DIMENSION)
+        inputs, coord, lod = random_crop_dataset(images, CROP_SIZE, NUM_CROP, uniform_distribution, dim=FP_DIMENSION)
         # print(coord)
         # print(convert_coordinate_start(device, coord, 8, 8))
         fl = feature_pyramid_mip_levels_dict[lod]
@@ -259,12 +259,12 @@ def train_models(fp):
             add_noise = False
 
         if FP_DIMENSION == 2:
-            decoder_input = create_decoder_input_2d(fp, coord, NUM_CROPS, fl, lod, add_noise)
+            decoder_input = create_decoder_input_2d(fp, coord, NUM_CROP, fl, lod, add_noise)
         elif FP_DIMENSION == 3:
             if COMPRESSION_METHOD == 4:
-                decoder_input = create_decoder_input_3d_v2(fp, coord, NUM_CROPS, fl, lod, add_noise)
+                decoder_input = create_decoder_input_3d_v2(fp, coord, NUM_CROP, fl, lod, add_noise)
             else:
-                decoder_input = create_decoder_input_3d(fp, coord, NUM_CROPS, fl, lod, add_noise)
+                decoder_input = create_decoder_input_3d(fp, coord, NUM_CROP, fl, lod, add_noise)
 
         # print(torch.any(torch.isinf(decoder_input)))
         if epoch < NUM_EPOCH * 0.95:
@@ -371,14 +371,10 @@ def decode_image(fp, arc_decoder, mip_level, pr=True, div_size=10):
 # モデルのインスタンス化
 decoder = ColorDecoder().to(DEVICE)
 criterion = nn.MSELoss()
-if FP_DIMENSION == 2:
-    feature_pyramid, feature_pyramid_levels = create_pyramid(FEATURE_PYRAMID_SIZE, FEATURE_PYRAMID_G0_CHANNEL,
-                                                             FP_G0_BIT, FEATURE_PYRAMID_G1_CHANNEL, FP_G1_BIT,
-                                                             DEVICE, MLP_DTYPE, TF_NO_MIP)
-elif FP_DIMENSION == 3:
-    feature_pyramid, feature_pyramid_levels = create_pyramid_3d(FEATURE_PYRAMID_SIZE, FEATURE_PYRAMID_G0_CHANNEL,
-                                                                FP_G0_BIT, FEATURE_PYRAMID_G1_CHANNEL, FP_G1_BIT,
-                                                                DEVICE, MLP_DTYPE, TF_NO_MIP)
+feature_pyramid, feature_pyramid_levels = create_pyramid(FEATURE_PYRAMID_SIZE, FP_DIMENSION,
+                                                         FEATURE_PYRAMID_G0_CHANNEL, FP_G0_BIT,
+                                                         FEATURE_PYRAMID_G1_CHANNEL, FP_G1_BIT,
+                                                         DEVICE, MLP_DTYPE, TF_NO_MIP)
 for fp in feature_pyramid:
     safe_statistics(fp, PRINTLOG_PATH)
 feature_pyramid_mip_levels_dict = create_pyramid_mip_levels(IMAGE_SIZE, FEATURE_PYRAMID_SIZE_RATE)
