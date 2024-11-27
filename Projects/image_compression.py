@@ -232,7 +232,6 @@ def finally_decode_input_3d_v2(fp, image_size, mip_level, x=0, y=0, z=0):
 # モデルの学習
 def train_models(fp):
     # 単一の画像での訓練ループ
-    count = 0
     accumulator = 0.0
     judge_freeze = True
     for epoch in range(NUM_EPOCH):
@@ -267,7 +266,6 @@ def train_models(fp):
                 decoder_input = create_decoder_input_3d(fp, coord, NUM_CROP, fl, lod, add_noise)
 
         decoder_output = decoder(decoder_input)
-        # decoder_output = decoder(decoder_input)
         target = inputs.reshape(-1, 3)
         loss = criterion(decoder_output, target)
         if TF_WRITE_PSNR:
