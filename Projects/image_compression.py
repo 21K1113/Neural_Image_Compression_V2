@@ -381,7 +381,7 @@ elif FP_DIMENSION == 3:
                                                                 DEVICE, MLP_DTYPE, TF_NO_MIP)
 for fp in feature_pyramid:
     safe_statistics(fp, PRINTLOG_PATH)
-feature_pyramid_mip_levels_dict = create_pyramid_mip_levels(IMAGE_SIZE, FEATURE_PYRAMID_SIZE)
+feature_pyramid_mip_levels_dict = create_pyramid_mip_levels(IMAGE_SIZE, FEATURE_PYRAMID_SIZE_RATE)
 optimizer = optim.Adam([
     {'params': feature_pyramid, 'lr': 0.01},  # fpの初期学習率
     {'params': decoder.parameters(), 'lr': 0.005}  # decoderの初期学習率

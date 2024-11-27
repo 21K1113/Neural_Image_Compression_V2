@@ -20,17 +20,22 @@ def return_pyramid_levels(base_size):
     return (count + 1) // 2
 
 
+# 特徴ピラミッドの最大レベルを返す
+def return_pyramid_levels_from_power(fp_power):
+    return (fp_power + 1) // 2
+
+
 # 特徴ピラミッドのレベルとミップレベルの関係の辞書を返す
-def create_pyramid_mip_levels(image_size, base_size):
-    count = return_2_power(image_size)
+def create_pyramid_mip_levels(image_size, fp_size_rate):
+    image_size_power = return_2_power(image_size)
+    fp_level = return_pyramid_levels_from_power(image_size_power - fp_size_rate)
     feature_pyramid_dict = defaultdict(int)
-    levels = return_pyramid_levels(base_size)
-    for i in range(count + 1):
-        feature_pyramid_dict[i] = (i // 2) - 1
+    for i in range(image_size_power + 1):
+        feature_pyramid_dict[i] = (i - fp_size_rate) // 2
         if feature_pyramid_dict[i] < 0:
             feature_pyramid_dict[i] = 0
-        elif feature_pyramid_dict[i] >= levels:
-            feature_pyramid_dict[i] = levels - 1
+        elif feature_pyramid_dict[i] >= fp_level:
+            feature_pyramid_dict[i] = fp_level - 1
     return feature_pyramid_dict
 
 
