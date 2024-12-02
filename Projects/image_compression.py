@@ -12,6 +12,9 @@ import time
 import math
 import random
 import datetime
+
+from torch import dtype
+
 from utils import *
 from models import *
 from fp_def import *
@@ -120,14 +123,14 @@ def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level, add_noise):
     # print(mip_level, sample_number, step_number)
     # start = time.perf_counter()
 
-    sample_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE).repeat(3, 1)
     lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE).to(DEVICE)
     # print(x_range)
     # print(coord)
 
     for i in range(num_crops):
         g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-            create_g0_g1_3d(fp, fl, coord[i][0], coord[i][1], coord[i][2], step_number, pe_step_number, sample_range, PE_CHANNEL, DEVICE, MLP_DTYPE))
+            create_g0_g1_3d_test(fp, fl, coord[i].view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
         decoder_input.append(
             torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
@@ -202,11 +205,12 @@ def finally_decode_input_3d(fp, image_size, mip_level, x=0, y=0, z=0):
     sample_number = image_size
     fl = feature_pyramid_mip_levels_dict[mip_level]
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    sample_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE).repeat(3, 1)
     pe_step_number = pow(2, mip_level)
     lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE).to(DEVICE)
+    coord = torch.tensor([x,y,z], dtype=MLP_DTYPE, device=DEVICE).view(3, 1)
     g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-        create_g0_g1_3d(fp, fl, x, y, z, step_number, pe_step_number, sample_range, PE_CHANNEL, DEVICE, MLP_DTYPE))
+        create_g0_g1_3d_test(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
     decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
     return decoder_input.T
@@ -345,9 +349,11 @@ def decode_image(fp, arc_decoder, mip_level, pr=True, div_size=10):
                     decoder_input = finally_decode_input_2d(fp, sample_number, mip_level, sample_number * x, sample_number * y)
                 elif FP_DIMENSION == 3:
                     if COMPRESSION_METHOD == 4:
-                        decoder_input = finally_decode_input_3d_v2(fp, sample_number, mip_level, sample_number * x, sample_number * y)
+                        pass
+                        # decoder_input = finally_decode_input_3d_v2(fp, sample_number, mip_level, sample_number * x, sample_number * y)
                     else:
-                        decoder_input = finally_decode_input_3d(fp, sample_number, mip_level, sample_number * x, sample_number * y)
+                        pass
+                        # decoder_input = finally_decode_input_3d(fp, sample_number, mip_level,sample_number * x, sample_number * y)
                 decoder_output = arc_decoder(decoder_input)
                 if pr:
                     print_(decoder_output.shape, PRINTLOG_PATH)
