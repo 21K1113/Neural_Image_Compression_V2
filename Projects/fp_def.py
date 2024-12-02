@@ -136,10 +136,10 @@ def create_g0_g1(fp, fl, x, y, step_number, x_range, y_range, pe_channels, devic
     return g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe
 
 
-def create_g0_g1_3d(fp, fl, x, y, z, step_number, x_range, pe_channels, device, dtype):
-    x_g0_tensor = (x_range + x) * step_number
-    y_g0_tensor = (x_range + y) * step_number
-    z_g0_tensor = (x_range + z) * step_number
+def create_g0_g1_3d(fp, fl, x, y, z, step_number, pe_step_number, sample_range, pe_channels, device, dtype):
+    x_g0_tensor = (sample_range + x) * step_number
+    y_g0_tensor = (sample_range + y) * step_number
+    z_g0_tensor = (sample_range + z) * step_number
     x_g0_index = torch.floor(x_g0_tensor).to(torch.int)
     y_g0_index = torch.floor(y_g0_tensor).to(torch.int)
     z_g0_index = torch.floor(z_g0_tensor).to(torch.int)
@@ -149,9 +149,12 @@ def create_g0_g1_3d(fp, fl, x, y, z, step_number, x_range, pe_channels, device, 
     x_g1_index = torch.floor(x_g1_tensor).to(torch.int)
     y_g1_index = torch.floor(y_g1_tensor).to(torch.int)
     z_g1_index = torch.floor(z_g1_tensor).to(torch.int)
+    x_pe_tensor = (sample_range + x) * pe_step_number
+    y_pe_tensor = (sample_range + y) * pe_step_number
+    z_pe_tensor = (sample_range + z) * pe_step_number
     x_g0_grid, y_g0_grid, z_g0_grid = torch.meshgrid(x_g0_index, y_g0_index, z_g0_index, indexing='ij')
     x_g1_grid, y_g1_grid, z_g1_grid = torch.meshgrid(x_g1_index, y_g1_index, z_g1_index, indexing='ij')
-    x_pe_grid, y_pe_grid, z_pe_grid = torch.meshgrid(x_g1_tensor, y_g1_tensor, z_g1_tensor, indexing='ij')
+    x_pe_grid, y_pe_grid, z_pe_grid = torch.meshgrid(x_pe_tensor, y_pe_tensor, z_pe_tensor, indexing='ij')
     x_g0_indices, y_g0_indices, z_g0_indices = x_g0_grid.reshape(-1), y_g0_grid.reshape(-1), z_g0_grid.reshape(-1)
     x_g1_indices, y_g1_indices, z_g1_indices = x_g1_grid.reshape(-1), y_g1_grid.reshape(-1), z_g1_grid.reshape(-1)
     x_pe_indices, y_pe_indices, z_pe_indices = x_pe_grid.reshape(-1), y_pe_grid.reshape(-1), z_pe_grid.reshape(-1)
