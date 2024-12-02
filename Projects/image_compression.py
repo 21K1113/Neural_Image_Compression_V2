@@ -70,120 +70,72 @@ class ColorDecoder(nn.Module):
         return x
 
 
+def add_noise_for_decoder_input(decoder_input):
+    fp_g0_c = FEATURE_PYRAMID_G0_CHANNEL
+    fp_g1_c = FEATURE_PYRAMID_G1_CHANNEL
+    decoder_input[0:4 * fp_g0_c] += (torch.rand_like(decoder_input[0:4 * fp_g0_c]) - 0.5) / pow(2, FP_G0_BIT)
+    decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c] += (torch.rand_like(
+        decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c]) - 0.5) / pow(2, FP_G1_BIT)
+    return decoder_input
+
+
 def create_decoder_input_2d(fp, coord, num_crops, fl, mip_level, add_noise):
-    # fp:feature_pyramid
-    # fl:feature_level
-    # G0:fp[fl*2]
-    # G1:fp[fl*2+1]
     decoder_input = []
-    irregular = False
     sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    # print("step_number", step_number)
-    # print(mip_level, sample_number, step_number)
-    # start = time.perf_counter()
-
-    x_range = torch.arange(sample_number).to(DEVICE)
-    y_range = torch.arange(sample_number).to(DEVICE)
-    lod_tensor = torch.ones(1, sample_number * sample_number).to(DEVICE)
-    # print(x_range)
-    # print(coord)
-
+    pe_step_number = pow(2, mip_level)
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(2, 1)
+    lod_tensor = torch.ones(1, pow(sample_number, 2), dtype=MLP_DTYPE, device=DEVICE)
     for i in range(num_crops):
-        g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe = create_g0_g1(fp, fl, coord[i][0], coord[i][1],
-                                                                          step_number, x_range, y_range, PE_CHANNEL,
-                                                                          DEVICE, MLP_DTYPE, TF_USE_TRI_PE)
+        g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe = (
+            create_g0_g1(fp, fl, coord[i].view(2, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE, TF_USE_TRI_PE))
         decoder_input.append(
             torch.cat([g0_0, g0_1, g0_2, g0_3, g1_0 + g1_1 + g1_2 + g1_3, pe, lod_tensor * mip_level], dim=0)
         )
     decoder_input = torch.cat(decoder_input, dim=1)
     if add_noise:
-        fp_g0_c = FEATURE_PYRAMID_G0_CHANNEL
-        fp_g1_c = FEATURE_PYRAMID_G1_CHANNEL
-        decoder_input[0:4 * fp_g0_c] += (torch.rand_like(decoder_input[0:4 * fp_g0_c]) - 0.5) / pow(2, FP_G0_BIT)
-        decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c] += (torch.rand_like(
-            decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c]) - 0.5) / pow(2, FP_G1_BIT)
-
-    # end = time.perf_counter()
-    # print(end - start)
+        decoder_input = add_noise_for_decoder_input(decoder_input)
     return decoder_input.T
 
 
 def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level, add_noise):
-    # fp:feature_pyramid
-    # fl:feature_level
-    # G0:fp[fl*2]
-    # G1:fp[fl*2+1]
     decoder_input = []
-    irregular = False
     sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
     pe_step_number = pow(2, mip_level)
-    # print("step_number", step_number)
-    # print(mip_level, sample_number, step_number)
-    # start = time.perf_counter()
-
-    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE).repeat(3, 1)
-    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE).to(DEVICE)
-    # print(x_range)
-    # print(coord)
-
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
+    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
     for i in range(num_crops):
         g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-            create_g0_g1_3d_test(fp, fl, coord[i].view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
+            create_g0_g1_3d(fp, fl, coord[i].view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
+        print(g0_0.shape)
         decoder_input.append(
             torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
         )
-    # print(g0_0.dtype, g0_1.dtype, g0_2.dtype, g0_3.dtype, g0_4.dtype, g0_5.dtype, g0_6.dtype, g0_7.dtype, g1_0.dtype, g1_1.dtype, g1_2.dtype, g1_3.dtype, g1_4.dtype, g1_5.dtype, g1_6.dtype, g1_7.dtype, pe.dtype)
     decoder_input = torch.cat(decoder_input, dim=1)
     if add_noise:
-        fp_g0_c = FEATURE_PYRAMID_G0_CHANNEL
-        fp_g1_c = FEATURE_PYRAMID_G1_CHANNEL
-        decoder_input[0:4 * fp_g0_c] += (torch.rand_like(decoder_input[0:4 * fp_g0_c]) - 0.5) / pow(2, FP_G0_BIT)
-        decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c] += (torch.rand_like(
-            decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c]) - 0.5) / pow(2, FP_G1_BIT)
-
-    # end = time.perf_counter()
-    # print(end - start)
+        decoder_input = add_noise_for_decoder_input(decoder_input)
     return decoder_input.T
 
 
 def create_decoder_input_3d_v2(fp, coord, num_crops, fl, mip_level, add_noise):
-    # fp:feature_pyramid
-    # fl:feature_level
-    # G0:fp[fl*2]
-    # G1:fp[fl*2+1]
     decoder_input = []
-    irregular = False
     sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    # print("step_number", step_number)
-    # print(mip_level, sample_number, step_number)
-    # start = time.perf_counter()
-
-    x_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
-    y_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
-    z_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
-    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE).to(DEVICE)
-    # print(x_range)
-    # print(coord)
-
+    pe_step_number = pow(2, mip_level)
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
+    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
     for i in range(num_crops):
         g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-            create_g0_g1_3d_v2(fp, fl, coord[i][0], coord[i][1], coord[i][2], step_number, x_range, y_range, z_range, PE_CHANNEL, DEVICE, MLP_DTYPE))
+            create_g0_g1_3d_v2(fp, fl, coord[i].view(3,1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
         decoder_input.append(
             torch.cat([g0_0, g0_1, g0_2, g0_3,
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
         )
     decoder_input = torch.cat(decoder_input, dim=1)
     if add_noise:
-        fp_g0_c = FEATURE_PYRAMID_G0_CHANNEL
-        fp_g1_c = FEATURE_PYRAMID_G1_CHANNEL
-        decoder_input[0:4*fp_g0_c] += (torch.rand_like(decoder_input[0:4*fp_g0_c]) - 0.5) / pow(2, FP_G0_BIT)
-        decoder_input[4*fp_g0_c:4*fp_g0_c+fp_g1_c] += (torch.rand_like(decoder_input[4*fp_g0_c:4*fp_g0_c+fp_g1_c]) - 0.5) / pow(2, FP_G1_BIT)
-    # end = time.perf_counter()
-    # print(end - start)
+        decoder_input = add_noise_for_decoder_input(decoder_input)
     return decoder_input.T
 
 
@@ -191,12 +143,12 @@ def finally_decode_input_2d(fp, image_size, mip_level, x=0, y=0):
     sample_number = image_size
     fl = feature_pyramid_mip_levels_dict[mip_level]
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    x_range = torch.arange(sample_number).to(DEVICE)
-    y_range = torch.arange(sample_number).to(DEVICE)
-    lod_tensor = torch.ones(1, sample_number * sample_number).to(DEVICE)
-    g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe = create_g0_g1(fp, fl, x, y,
-                                                                      step_number, x_range, y_range, PE_CHANNEL,
-                                                                      DEVICE, MLP_DTYPE, TF_USE_TRI_PE)
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(2, 1)
+    pe_step_number = pow(2, mip_level)
+    lod_tensor = torch.ones(1, pow(sample_number, 2), dtype=MLP_DTYPE, device=DEVICE)
+    coord = torch.tensor([x,y], dtype=MLP_DTYPE, device=DEVICE).view(2, 1)
+    g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe = (
+        create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE, TF_USE_TRI_PE))
     decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3, g1_0 + g1_1 + g1_2 + g1_3, pe, lod_tensor * mip_level], dim=0)
     return decoder_input.T
 
@@ -205,12 +157,12 @@ def finally_decode_input_3d(fp, image_size, mip_level, x=0, y=0, z=0):
     sample_number = image_size
     fl = feature_pyramid_mip_levels_dict[mip_level]
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE).repeat(3, 1)
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
     pe_step_number = pow(2, mip_level)
-    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE).to(DEVICE)
+    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
     coord = torch.tensor([x,y,z], dtype=MLP_DTYPE, device=DEVICE).view(3, 1)
     g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-        create_g0_g1_3d_test(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
+        create_g0_g1_3d(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
     decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
     return decoder_input.T
@@ -220,12 +172,12 @@ def finally_decode_input_3d_v2(fp, image_size, mip_level, x=0, y=0, z=0):
     sample_number = image_size
     fl = feature_pyramid_mip_levels_dict[mip_level]
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    x_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
-    y_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
-    z_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
-    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE).to(DEVICE)
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
+    pe_step_number = pow(2, mip_level)
+    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
+    coord = torch.tensor([x, y, z], dtype=MLP_DTYPE, device=DEVICE).view(3, 1)
     g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-        create_g0_g1_3d_v2(fp, fl, x, y, z, step_number, x_range, y_range, z_range, PE_CHANNEL, DEVICE, MLP_DTYPE))
+        create_g0_g1_3d_v2(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
     decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3,
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
     return decoder_input.T
