@@ -115,7 +115,7 @@ def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level, add_noise):
     irregular = False
     sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    pe_step_number = CROP_SIZE / sample_number
+    pe_step_number = pow(2, mip_level)
     # print("step_number", step_number)
     # print(mip_level, sample_number, step_number)
     # start = time.perf_counter()
@@ -203,9 +203,10 @@ def finally_decode_input_3d(fp, image_size, mip_level, x=0, y=0, z=0):
     fl = feature_pyramid_mip_levels_dict[mip_level]
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
     sample_range = torch.arange(sample_number, dtype=MLP_DTYPE).to(DEVICE)
+    pe_step_number = pow(2, mip_level)
     lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE).to(DEVICE)
     g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-        create_g0_g1_3d(fp, fl, x, y, z, step_number, sample_range, PE_CHANNEL, DEVICE, MLP_DTYPE))
+        create_g0_g1_3d(fp, fl, x, y, z, step_number, pe_step_number, sample_range, PE_CHANNEL, DEVICE, MLP_DTYPE))
     decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
     return decoder_input.T
