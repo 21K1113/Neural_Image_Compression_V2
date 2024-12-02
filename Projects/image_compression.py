@@ -74,8 +74,8 @@ def create_decoder_input_2d(fp, coord, num_crops, fl, mip_level, add_noise):
     # G1:fp[fl*2+1]
     decoder_input = []
     irregular = False
-    sample_number = pow(2, max(0, 8 - mip_level))
-    step_number = pow(2, mip_level - (fl + 1) * 2)
+    sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
+    step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
     # print("step_number", step_number)
     # print(mip_level, sample_number, step_number)
     # start = time.perf_counter()
@@ -188,7 +188,7 @@ def create_decoder_input_3d_v2(fp, coord, num_crops, fl, mip_level, add_noise):
 def finally_decode_input_2d(fp, image_size, mip_level, x=0, y=0):
     sample_number = image_size
     fl = feature_pyramid_mip_levels_dict[mip_level]
-    step_number = pow(2, mip_level - (fl + 1) * 2)
+    step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
     x_range = torch.arange(sample_number).to(DEVICE)
     y_range = torch.arange(sample_number).to(DEVICE)
     lod_tensor = torch.ones(1, sample_number * sample_number).to(DEVICE)
@@ -235,6 +235,7 @@ def train_models(fp):
     accumulator = 0.0
     judge_freeze = True
     for epoch in range(NUM_EPOCH):
+        # print(epoch)
         accumulator += UNIFORM_DISTRIBUTION_RATE
         if accumulator >= 1.0:
             accumulator -= 1.0
@@ -515,7 +516,7 @@ print(np.mean(np.abs(a)))
 """
 
 for i in range(MAX_MIP_LEVEL + 1):
-    if IMAGE_DIMENSION == 2:
+    if IMAGE_DIMENSION == 2 or COMPRESSION_METHOD == 2:
         psnr = calculate_psnr(quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
                               reconstructed_images[i].astype(np.float32))
     elif IMAGE_DIMENSION == 3:

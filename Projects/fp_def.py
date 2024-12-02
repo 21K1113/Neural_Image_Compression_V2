@@ -31,11 +31,7 @@ def create_pyramid_mip_levels(image_size, fp_size_rate):
     fp_level = return_pyramid_levels_from_power(image_size_power - fp_size_rate)
     feature_pyramid_dict = defaultdict(int)
     for i in range(image_size_power + 1):
-        feature_pyramid_dict[i] = (i - fp_size_rate) // 2
-        if feature_pyramid_dict[i] < 0:
-            feature_pyramid_dict[i] = 0
-        elif feature_pyramid_dict[i] >= fp_level:
-            feature_pyramid_dict[i] = fp_level - 1
+        feature_pyramid_dict[i] = min(max(0, (i - fp_size_rate) // 2), fp_level - 1)
     return feature_pyramid_dict
 
 

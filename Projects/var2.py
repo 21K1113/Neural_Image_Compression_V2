@@ -79,7 +79,7 @@ HIDDEN_LAYER_CHANNEL = 64           # デコーダの中間層のノード数
 
 FEATURE_PYRAMID_G0_CHANNEL = 12     # 特徴ピラミッドのG0のチャンネル数
 FP_G0_BIT = 8                       # 特徴ピラミッドのG0の量子化ビット数
-FEATURE_PYRAMID_SIZE_RATE = 4       # 特徴ピラミッドのG0のサイズ比率（4なら1/4になる）
+FEATURE_PYRAMID_SIZE_RATE = 2       # 特徴ピラミッドのG0のサイズ比率（4なら1/4になる）
 FEATURE_PYRAMID_G1_CHANNEL = 12     # 特徴ピラミッドのG1のチャンネル数
 FP_G1_BIT = 8                       # 特徴ピラミッドのG0の量子化ビット数
 
@@ -116,7 +116,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BASENAME = os.path.basename(IMAGE_PATH)
 IMAGE_EXT = os.path.splitext(IMAGE_PATH)[1][1:]
 IMAGE_DTYPE = dtype_from_ext(IMAGE_EXT)
-FEATURE_PYRAMID_SIZE = IMAGE_SIZE // FEATURE_PYRAMID_SIZE_RATE      # 特徴ピラミッドのサイズ
+FEATURE_PYRAMID_SIZE = IMAGE_SIZE // pow(2, FEATURE_PYRAMID_SIZE_RATE)      # 特徴ピラミッドのサイズ
 FP_DIMENSION = IMAGE_DIMENSION
 if COMPRESSION_METHOD == 2:
     FP_DIMENSION = 2

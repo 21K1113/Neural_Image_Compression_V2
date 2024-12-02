@@ -115,6 +115,13 @@ def save_result_to_csv(result, filename):
 
 # PSNRを計算する関数の定義
 def calculate_psnr(original, reconstructed, num_bits=8):
+    # print(original.shape)
+    # print(reconstructed.shape)
+    # print(torch.isnan(original).any())
+    # print(torch.isinf(original).any())
+    # print(torch.isnan(reconstructed).any())
+    # print(torch.isinf(reconstructed).any())
+
     if isinstance(original, np.ndarray):
         mse = np.mean((original - reconstructed) ** 2)
     elif isinstance(original, torch.Tensor):
