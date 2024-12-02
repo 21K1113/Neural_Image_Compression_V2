@@ -136,10 +136,10 @@ def create_g0_g1(fp, fl, x, y, step_number, x_range, y_range, pe_channels, devic
     return g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe
 
 
-def create_g0_g1_3d(fp, fl, x, y, z, step_number, x_range, y_range, z_range, pe_channels, device, dtype):
+def create_g0_g1_3d(fp, fl, x, y, z, step_number, x_range, pe_channels, device, dtype):
     x_g0_tensor = (x_range + x) * step_number
-    y_g0_tensor = (y_range + y) * step_number
-    z_g0_tensor = (z_range + z) * step_number
+    y_g0_tensor = (x_range + y) * step_number
+    z_g0_tensor = (x_range + z) * step_number
     x_g0_index = torch.floor(x_g0_tensor).to(torch.int)
     y_g0_index = torch.floor(y_g0_tensor).to(torch.int)
     z_g0_index = torch.floor(z_g0_tensor).to(torch.int)
