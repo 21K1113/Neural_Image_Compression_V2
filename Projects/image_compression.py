@@ -108,7 +108,6 @@ def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level, add_noise):
     for i in range(num_crops):
         g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
             create_g0_g1_3d(fp, fl, coord[i].view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
-        print(g0_0.shape)
         decoder_input.append(
             torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
                        g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
@@ -160,7 +159,7 @@ def finally_decode_input_3d(fp, image_size, mip_level, x=0, y=0, z=0):
     sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
     pe_step_number = pow(2, mip_level)
     lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
-    coord = torch.tensor([x,y,z], dtype=MLP_DTYPE, device=DEVICE).view(3, 1)
+    coord = torch.tensor([x, y, z], dtype=MLP_DTYPE, device=DEVICE).view(3, 1)
     g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
         create_g0_g1_3d(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
     decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,

@@ -78,12 +78,6 @@ def create_g(fp, fl, j, x_indices, y_indices):
 
 
 def create_g_3d(fp, fl, j, x_indices, y_indices, z_indices):
-    # torch.set_printoptions(edgeitems=1000)
-    # print(z_indices)
-    # print(fp[fl * 2 + j].shape[1])
-    # assert torch.all(z_indices + 1 < fp[fl * 2 + j].shape[1])
-    # assert torch.all(y_indices + 1 < fp[fl * 2 + j].shape[2])
-    # assert torch.all(x_indices + 1 < fp[fl * 2 + j].shape[3])
     g_0 = fp[fl * 2 + j][:, z_indices, y_indices, x_indices]
     g_1 = fp[fl * 2 + j][:, z_indices + 1, y_indices, x_indices]
     g_2 = fp[fl * 2 + j][:, z_indices, y_indices + 1, x_indices]
