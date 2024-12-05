@@ -117,72 +117,36 @@ def create_g1_k_3d(g1, g1_k_grid):
     return g1
 
 
-def create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_channels, device, dtype, use_tri_pe=True):
-    range_xy = sample_ranges + coord  # (2, l)
-    step_tensor = range_xy * step_number
+def create_meshgrid(any_indices):
+    any_grid = torch.meshgrid(*any_indices, indexing='ij')
+    return [grid.reshape(-1) for grid in any_grid]
+
+
+def create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_channels, method, device, dtype):
+    range_add_coord = sample_ranges + coord  # (2, l) or (3, l)
+    step_tensor = range_add_coord * step_number
     g0_indices = torch.floor(step_tensor).to(torch.int)
     g1_indices = (step_tensor // 2).to(torch.int)
-    pe_indices = range_xy * pe_step_number
-    g0_grid = torch.meshgrid(*g0_indices, indexing='ij')
-    g1_grid = torch.meshgrid(*g1_indices, indexing='ij')
-    pe_grid = torch.meshgrid(*pe_indices, indexing='ij')
-    g0_flat = [grid.reshape(-1) for grid in g0_grid]
-    g1_flat = [grid.reshape(-1) for grid in g1_grid]
-    pe_flat = [grid.reshape(-1) for grid in pe_grid]
-    g0 = create_g(fp, fl, 0, *g0_flat)  # taple
-    g1 = create_g(fp, fl, 1, *g1_flat)  # taple
+    pe_indices = range_add_coord * pe_step_number
+    g0_flat = create_meshgrid(g0_indices)
+    g1_flat = create_meshgrid(g1_indices)
+    pe_flat = create_meshgrid(pe_indices)
+    if method == 1 or method == 2:
+        g0 = create_g(fp, fl, 0, *g0_flat)  # tuple
+        g1 = create_g(fp, fl, 1, *g1_flat)  # tuple
+    elif method == 3:
+        g0 = create_g_3d(fp, fl, 0, *g0_flat)  # tuple
+        g1 = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
+    elif method == 4:
+        g0 = create_g_3d_v2(fp, fl, 0, *g0_flat)  # tuple
+        g1 = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
     pe = triangular_positional_encoding(torch.stack(pe_flat), pe_channels, device, dtype)
-    g1_k = (range_xy + 0.5) * step_number % 1
-    g1_k_grid = torch.meshgrid(*g1_k, indexing='ij')
-    g1_k_grid = [grid.reshape(-1) for grid in g1_k_grid]
-    g1 = create_g1_k(list(g1), g1_k_grid)
-
-    return *g0, *g1, pe
-
-
-def create_g0_g1_3d(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_channels, device, dtype):
-    range_xyz = sample_ranges + coord  # (3, l)
-    step_tensor = range_xyz * step_number
-    g0_indices = torch.floor(step_tensor).to(torch.int)
-    g1_indices = (step_tensor // 2).to(torch.int)
-    pe_indices = range_xyz * pe_step_number
-    g0_grid = torch.meshgrid(*g0_indices, indexing='ij')
-    g1_grid = torch.meshgrid(*g1_indices, indexing='ij')
-    pe_grid = torch.meshgrid(*pe_indices, indexing='ij')
-    g0_flat = [grid.reshape(-1) for grid in g0_grid]
-    g1_flat = [grid.reshape(-1) for grid in g1_grid]
-    pe_flat = [grid.reshape(-1) for grid in pe_grid]
-    g0 = create_g_3d(fp, fl, 0, *g0_flat)  # taple
-    g1 = create_g_3d(fp, fl, 1, *g1_flat)  # taple
-    pe = triangular_positional_encoding(torch.stack(pe_flat), pe_channels, device, dtype)
-    g1_k = (range_xyz + 0.5) * step_number % 1
-    g1_k_grid = torch.meshgrid(*g1_k, indexing='ij')
-    g1_k_grid = [grid.reshape(-1) for grid in g1_k_grid]
-    g1 = create_g1_k_3d(list(g1), g1_k_grid)
-
-    return *g0, *g1, pe
-
-
-def create_g0_g1_3d_v2(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_channels, device, dtype):
-    range_xyz = sample_ranges + coord  # (3, l)
-    step_tensor = range_xyz * step_number
-    g0_indices = torch.floor(step_tensor).to(torch.int)
-    g1_indices = (step_tensor // 2).to(torch.int)
-    pe_indices = range_xyz * pe_step_number
-    g0_grid = torch.meshgrid(*g0_indices, indexing='ij')
-    g1_grid = torch.meshgrid(*g1_indices, indexing='ij')
-    pe_grid = torch.meshgrid(*pe_indices, indexing='ij')
-    g0_flat = [grid.reshape(-1) for grid in g0_grid]
-    g1_flat = [grid.reshape(-1) for grid in g1_grid]
-    pe_flat = [grid.reshape(-1) for grid in pe_grid]
-    g0 = create_g_3d_v2(fp, fl, 0, *g0_flat)  # taple
-    g1 = create_g_3d(fp, fl, 1, *g1_flat)  # taple
-    pe = triangular_positional_encoding(torch.stack(pe_flat), pe_channels, device, dtype)
-    g1_k = (range_xyz + 0.5) * step_number % 1
-    g1_k_grid = torch.meshgrid(*g1_k, indexing='ij')
-    g1_k_grid = [grid.reshape(-1) for grid in g1_k_grid]
-    g1 = create_g1_k_3d(list(g1), g1_k_grid)
-
+    g1_k = (range_add_coord + 0.5) * step_number % 1
+    g1_k_grid = create_meshgrid(g1_k)
+    if method == 1 or method == 2:
+        g1 = create_g1_k(list(g1), g1_k_grid)
+    elif method == 3 or method == 4:
+        g1 = create_g1_k_3d(list(g1), g1_k_grid)
     return *g0, *g1, pe
 
 

@@ -25,9 +25,10 @@ print_(datetime.datetime.now(), PRINTLOG_PATH)
 for var in over_write_variable_dict.keys():
     print_(f"{var} : {eval(var)}", PRINTLOG_PATH)
 
+
 def random_crop_dataset(datasets, crop_size, num_crops, uniform_distribution, dim=2):
     crops = []
-    coord = []
+    coords = []
     if uniform_distribution:
         lod = random.randint(0, MAX_MIP_LEVEL)
     else:
@@ -48,8 +49,8 @@ def random_crop_dataset(datasets, crop_size, num_crops, uniform_distribution, di
             crop = dataset[:, start_coord[0]:end_coord[0], start_coord[1]:end_coord[1], start_coord[2]:end_coord[2]]
         crop = crop.reshape(3, -1).T
         crops.append(crop)  # チャンネルを最後から最初に移動
-        coord.append(start_coord)
-    return torch.stack(crops), torch.stack(coord), lod
+        coords.append(start_coord)
+    return torch.stack(crops), torch.stack(coords), lod
 
 
 # フルカラー画像用デコーダの定義
@@ -79,107 +80,54 @@ def add_noise_for_decoder_input(decoder_input):
     return decoder_input
 
 
-def create_decoder_input_2d(fp, coord, num_crops, fl, mip_level, add_noise):
+def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=0):
     decoder_input = []
-    sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
-    step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    pe_step_number = pow(2, mip_level)
-    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(2, 1)
-    lod_tensor = torch.ones(1, pow(sample_number, 2), dtype=MLP_DTYPE, device=DEVICE)
-    for i in range(num_crops):
-        g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe = (
-            create_g0_g1(fp, fl, coord[i].view(2, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE, TF_USE_TRI_PE))
-        decoder_input.append(
-            torch.cat([g0_0, g0_1, g0_2, g0_3, g1_0 + g1_1 + g1_2 + g1_3, pe, lod_tensor * mip_level], dim=0)
-        )
-    decoder_input = torch.cat(decoder_input, dim=1)
-    if add_noise:
-        decoder_input = add_noise_for_decoder_input(decoder_input)
-    return decoder_input.T
-
-
-def create_decoder_input_3d(fp, coord, num_crops, fl, mip_level, add_noise):
-    decoder_input = []
-    sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
-    step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    pe_step_number = pow(2, mip_level)
-    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
-    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
-    for i in range(num_crops):
-        g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-            create_g0_g1_3d(fp, fl, coord[i].view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
-        decoder_input.append(
-            torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
-                       g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
-        )
-    decoder_input = torch.cat(decoder_input, dim=1)
-    if add_noise:
-        decoder_input = add_noise_for_decoder_input(decoder_input)
-    return decoder_input.T
-
-
-def create_decoder_input_3d_v2(fp, coord, num_crops, fl, mip_level, add_noise):
-    decoder_input = []
-    sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
-    step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    pe_step_number = pow(2, mip_level)
-    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
-    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
-    for i in range(num_crops):
-        g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-            create_g0_g1_3d_v2(fp, fl, coord[i].view(3,1), step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
-        decoder_input.append(
-            torch.cat([g0_0, g0_1, g0_2, g0_3,
-                       g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
-        )
-    decoder_input = torch.cat(decoder_input, dim=1)
-    if add_noise:
-        decoder_input = add_noise_for_decoder_input(decoder_input)
-    return decoder_input.T
-
-
-def finally_decode_input_2d(fp, image_size, mip_level, x=0, y=0):
-    sample_number = image_size
     fl = feature_pyramid_mip_levels_dict[mip_level]
+    if image_size:
+        sample_number = image_size
+    else:
+        sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
     step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(2, 1)
     pe_step_number = pow(2, mip_level)
-    lod_tensor = torch.ones(1, pow(sample_number, 2), dtype=MLP_DTYPE, device=DEVICE)
-    coord = torch.tensor([x,y], dtype=MLP_DTYPE, device=DEVICE).view(2, 1)
+    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(FP_DIMENSION, 1)
+    lod_tensor = torch.ones(1, pow(sample_number, FP_DIMENSION), dtype=MLP_DTYPE, device=DEVICE)
+    for i in range(num_crop):
+        if COMPRESSION_METHOD == 1 or COMPRESSION_METHOD == 2:
+            decoder_input.append(decoder_input_merge_2d(fp, fl, coords[i], step_number, pe_step_number, sample_ranges,
+                                                        lod_tensor, mip_level))
+        elif COMPRESSION_METHOD == 3:
+            decoder_input.append(decoder_input_merge_3d(fp, fl, coords[i], step_number, pe_step_number, sample_ranges,
+                                                        lod_tensor, mip_level))
+        elif COMPRESSION_METHOD == 4:
+            decoder_input.append(decoder_input_merge_3d_v2(fp, fl, coords[i], step_number, pe_step_number,
+                                                           sample_ranges, lod_tensor, mip_level))
+    decoder_input = torch.cat(decoder_input, dim=1)
+    if add_noise:
+        decoder_input = add_noise_for_decoder_input(decoder_input)
+    return decoder_input.T
+
+
+def decoder_input_merge_2d(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
     g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe = (
-        create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE, TF_USE_TRI_PE))
-    decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3, g1_0 + g1_1 + g1_2 + g1_3, pe, lod_tensor * mip_level], dim=0)
-    return decoder_input.T
+        create_g0_g1(fp, fl, coord.view(2, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
+                     COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
+    return torch.cat([g0_0, g0_1, g0_2, g0_3, g1_0 + g1_1 + g1_2 + g1_3, pe, lod_tensor * mip_level], dim=0)
 
 
-def finally_decode_input_3d(fp, image_size, mip_level, x=0, y=0, z=0):
-    sample_number = image_size
-    fl = feature_pyramid_mip_levels_dict[mip_level]
-    step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
-    pe_step_number = pow(2, mip_level)
-    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
-    coord = torch.tensor([x, y, z], dtype=MLP_DTYPE, device=DEVICE).view(3, 1)
+def decoder_input_merge_3d(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
     g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-        create_g0_g1_3d(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
-    decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
-                       g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
-    return decoder_input.T
+        create_g0_g1(fp, fl, coord.view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
+                     COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
+    return torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
+                      g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
 
 
-def finally_decode_input_3d_v2(fp, image_size, mip_level, x=0, y=0, z=0):
-    sample_number = image_size
-    fl = feature_pyramid_mip_levels_dict[mip_level]
-    step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
-    sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(3, 1)
-    pe_step_number = pow(2, mip_level)
-    lod_tensor = torch.ones(1, pow(sample_number, 3), dtype=MLP_DTYPE, device=DEVICE)
-    coord = torch.tensor([x, y, z], dtype=MLP_DTYPE, device=DEVICE).view(3, 1)
+def decoder_input_merge_3d_v2(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
     g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
-        create_g0_g1_3d_v2(fp, fl, coord, step_number, pe_step_number, sample_ranges, PE_CHANNEL, DEVICE, MLP_DTYPE))
-    decoder_input = torch.cat([g0_0, g0_1, g0_2, g0_3,
-                       g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
-    return decoder_input.T
+        create_g0_g1(fp, fl, coord.view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
+                     COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
+    return torch.cat([g0_0, g0_1, g0_2, g0_3,
+                      g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
 
 
 # モデルの学習
@@ -201,7 +149,7 @@ def train_models(fp):
                 fp = fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT, TF_USE_MISS_QUANTIZE)
                 judge_freeze = False
         start_epoch_time = time.perf_counter()
-        inputs, coord, lod = random_crop_dataset(images, CROP_SIZE, NUM_CROP, uniform_distribution, dim=FP_DIMENSION)
+        inputs, coords, lod = random_crop_dataset(images, CROP_SIZE, NUM_CROP, uniform_distribution, dim=FP_DIMENSION)
         # print(coord)
         # print(convert_coordinate_start(device, coord, 8, 8))
         fl = feature_pyramid_mip_levels_dict[lod]
@@ -211,19 +159,14 @@ def train_models(fp):
         else:
             add_noise = False
 
-        if FP_DIMENSION == 2:
-            decoder_input = create_decoder_input_2d(fp, coord, NUM_CROP, fl, lod, add_noise)
-        elif FP_DIMENSION == 3:
-            if COMPRESSION_METHOD == 4:
-                decoder_input = create_decoder_input_3d_v2(fp, coord, NUM_CROP, fl, lod, add_noise)
-            else:
-                decoder_input = create_decoder_input_3d(fp, coord, NUM_CROP, fl, lod, add_noise)
+        decoder_input = create_decoder_input(fp, coords, NUM_CROP, lod, add_noise)
 
         decoder_output = decoder(decoder_input)
         target = inputs.reshape(-1, 3)
         loss = criterion(decoder_output, target)
         if TF_WRITE_PSNR:
-            psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BIT, TF_USE_MISS_QUANTIZE), quantize_from_norm_to_bit(target, OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
+            psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
+                                  quantize_from_norm_to_bit(target, OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
 
         # 逆伝播と最適化
         optimizer.zero_grad()
@@ -245,16 +188,20 @@ def train_models(fp):
 
         if (epoch + 1) % INTERVAL_PRINT == 0:
             if TF_PRINT_PSNR:
-                reconstructed = decode_image(fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT, TF_USE_MISS_QUANTIZE), decoder, i, False)
+                reconstructed = decode_image(fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT, TF_USE_MISS_QUANTIZE), decoder,
+                                             i, False)
                 if FP_DIMENSION == 2:
-                    all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
-                                              quantize_from_norm_to_bit(images[0].permute(1, 2, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
+                    all_psnr = calculate_psnr(
+                        quantize_from_norm_to_bit(reconstructed, OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
+                        quantize_from_norm_to_bit(images[0].permute(1, 2, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
                 elif FP_DIMENSION == 3:
-                    all_psnr = calculate_psnr(quantize_from_norm_to_bit(reconstructed, OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
-                                              quantize_from_norm_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
+                    all_psnr = calculate_psnr(
+                        quantize_from_norm_to_bit(reconstructed, OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
+                        quantize_from_norm_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
                 writer.add_scalar('PSNR/mip0', all_psnr, epoch + 1)
                 if TF_PRINT_LOG:
-                    print_(f'Epoch [{epoch + 1}/{NUM_EPOCH}], Loss: {loss.item():.4f} PSNR: {all_psnr:.4f}', PRINTLOG_PATH)
+                    print_(f'Epoch [{epoch + 1}/{NUM_EPOCH}], Loss: {loss.item():.4f} PSNR: {all_psnr:.4f}',
+                           PRINTLOG_PATH)
                 else:
                     print_(f'Epoch [{epoch + 1}/{NUM_EPOCH}], PSNR: {all_psnr:.4f}',
                            PRINTLOG_PATH)
@@ -272,17 +219,12 @@ def train_models(fp):
 def decode_image(fp, arc_decoder, mip_level, pr=True, div_size=10):
     with (torch.no_grad()):
         power = MAX_MIP_LEVEL - mip_level
-        div_slice = pow(2, max(power - div_size, 0))
-        div_count = pow(div_slice, 2)
+        div_slice = pow(FP_DIMENSION, max(power - div_size, 0))
+        div_count = pow(div_slice, FP_DIMENSION)
         decode_size = IMAGE_SIZE // pow(2, mip_level)
         if div_count == 1:
-            if FP_DIMENSION == 2:
-                decoder_input = finally_decode_input_2d(fp, decode_size, mip_level)
-            elif FP_DIMENSION == 3:
-                if COMPRESSION_METHOD == 4:
-                    decoder_input = finally_decode_input_3d_v2(fp, decode_size, mip_level)
-                else:
-                    decoder_input = finally_decode_input_3d(fp, decode_size, mip_level)
+            coord = torch.zeros((1, FP_DIMENSION), dtype=MLP_DTYPE, device=DEVICE)
+            decoder_input = create_decoder_input(fp, coord, 1, mip_level, False, IMAGE_SIZE)
             decoder_output = arc_decoder(decoder_input)
             if pr:
                 print_(decoder_output.shape, PRINTLOG_PATH)
@@ -291,25 +233,33 @@ def decode_image(fp, arc_decoder, mip_level, pr=True, div_size=10):
             elif FP_DIMENSION == 3:
                 return decoder_output.reshape(decode_size, decode_size, decode_size, 3)
         else:
-            result = torch.zeros(IMAGE_SIZE // pow(2, mip_level), IMAGE_SIZE // pow(2, mip_level), 3, dtype=MLP_DTYPE)
+            if FP_DIMENSION == 2:
+                result = torch.zeros(IMAGE_SIZE // pow(2, mip_level), IMAGE_SIZE // pow(2, mip_level), 3,
+                                     dtype=MLP_DTYPE)
+            elif FP_DIMENSION == 3:
+                result = torch.zeros(IMAGE_SIZE // pow(2, mip_level), IMAGE_SIZE // pow(2, mip_level),
+                                     IMAGE_SIZE // pow(2, mip_level), 3, dtype=MLP_DTYPE)
             for i in range(div_count):
                 sample_number = IMAGE_SIZE // pow(2, mip_level + max(power - div_size, 0))
-                x = i % div_slice
-                y = i // div_slice
                 if FP_DIMENSION == 2:
-                    decoder_input = finally_decode_input_2d(fp, sample_number, mip_level, sample_number * x, sample_number * y)
+                    x = (i % div_slice) * sample_number
+                    y = (i // div_slice) * sample_number
+                    coord = torch.tensor([[x, y]], dtype=MLP_DTYPE, device=DEVICE)
                 elif FP_DIMENSION == 3:
-                    if COMPRESSION_METHOD == 4:
-                        pass
-                        # decoder_input = finally_decode_input_3d_v2(fp, sample_number, mip_level, sample_number * x, sample_number * y)
-                    else:
-                        pass
-                        # decoder_input = finally_decode_input_3d(fp, sample_number, mip_level,sample_number * x, sample_number * y)
+                    x = (i % div_slice) * sample_number
+                    y = (i // div_slice % div_slice) * sample_number
+                    z = (i // div_slice // div_slice) * sample_number
+                    coord = torch.tensor([[x, y, z]], dtype=MLP_DTYPE, device=DEVICE)
+                decoder_input = create_decoder_input(fp, coord, 1, mip_level, False, sample_number)
                 decoder_output = arc_decoder(decoder_input)
                 if pr:
                     print_(decoder_output.shape, PRINTLOG_PATH)
-                result[sample_number * x:sample_number * (x + 1), sample_number * y:sample_number * (y + 1),
-                :] = decoder_output.reshape(sample_number, sample_number, 3)
+                if FP_DIMENSION == 2:
+                    result[x:sample_number + x, y:sample_number + y, :] = decoder_output.reshape(sample_number,
+                                                                                                 sample_number, 3)
+                elif FP_DIMENSION == 3:
+                    result[x:sample_number + x, y:sample_number + y, z:sample_number + z, :] = decoder_output.reshape(
+                        sample_number, sample_number, sample_number, 3)
             return result
 
 
@@ -392,6 +342,7 @@ def process_images(train_model, fp):
 
     return reconstructed_images
 
+
 if IMAGE_DIMENSION == 2:
     if COMPRESSION_METHOD != 1:
         print_("Error: COMPRESSION_METHOD must be 1 for 2d image", PRINTLOG_PATH)
@@ -442,8 +393,6 @@ elif IMAGE_DIMENSION == 3:
             image = image.to(DEVICE)
             images.append(image)
 
-
-
 reconstructed_images = process_images(TF_TRAIN_MODEL, feature_pyramid)
 np.set_printoptions(threshold=1000)
 """
@@ -472,14 +421,16 @@ print(np.mean(np.abs(a)))
 
 for i in range(MAX_MIP_LEVEL + 1):
     if IMAGE_DIMENSION == 2 or COMPRESSION_METHOD == 2:
-        psnr = calculate_psnr(quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
-                              reconstructed_images[i].astype(np.float32))
+        psnr = calculate_psnr(
+            quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
+            reconstructed_images[i].astype(np.float32))
     elif IMAGE_DIMENSION == 3:
-        psnr = calculate_psnr(quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 3, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
-                              reconstructed_images[i].astype(np.float32))
+        psnr = calculate_psnr(
+            quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 3, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
+            reconstructed_images[i].astype(np.float32))
     print_(f"psnr: {psnr}", PRINTLOG_PATH)
 
-#for i in range(MAX_MIP_LEVEL + 1):
+# for i in range(MAX_MIP_LEVEL + 1):
 #    save_result_to_csv(reconstructed_movie, make_filename_by_seq(f'LUT/{SAVE_NAME}', f'{SAVE_NAME}_{i}.csv'))
 
 if TF_SHOW_RESULT:

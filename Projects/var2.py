@@ -90,7 +90,7 @@ INTERVAL_PRINT = 100                # logやPSNRのprintをする間隔
 INTERVAL_SAVE_MODEL = 100000        # 学習途中のモデルを保存する間隔
 
 TF_NO_MIP = True                    # mipmapを生成しない
-TF_USE_TRI_PE = True                # 三角関数ではなく、三角波に基づいた位置エンコーディングを使用する
+TF_USE_TRI_PE = True                # 三角関数ではなく、三角波に基づいた位置エンコーディングを使用する（もう使ってない）
 TF_USE_MISS_QUANTIZE = False        # クオンタイズ関数を修正前のものを使う
 TF_TRAIN_MODEL = True               # 学習するかどうか（Falseのとき、学習済みモデルをロードする）
 
