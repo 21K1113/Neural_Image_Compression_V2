@@ -141,7 +141,7 @@ def create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_c
         g0 = create_g_3d_v2(fp, fl, 0, *g0_flat)  # tuple
         g1 = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
     pe = triangular_positional_encoding(torch.stack(pe_flat), pe_channels, device, dtype)
-    g1_k = (range_add_coord + 0.5) * step_number % 1
+    g1_k = (range_add_coord + 0.5) * step_number / 2 % 1
     g1_k_grid = create_meshgrid(g1_k)
     if method == 1 or method == 2:
         g1 = create_g1_k(list(g1), g1_k_grid)
