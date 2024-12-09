@@ -343,3 +343,12 @@ def dtype_from_ext(ext):
         return "movie"
     elif ext.lower() in ['png', 'jpg', 'jpeg']:
         return "image"
+
+
+def diff_fps(fp1, fp2, printlog_path):
+    for i in range(len(fp1)):
+        diff = fp1[i] - fp2[i]
+        print_("max" + str(torch.max(diff)), printlog_path)
+        print_("min" + str(torch.min(diff)), printlog_path)
+        print_("mean" + str(torch.mean(fp1[i])), printlog_path)
+        print_("abs mean" + str(torch.mean(torch.abs(fp1[i]))), printlog_path)

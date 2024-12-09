@@ -37,11 +37,11 @@ over_write_variable_dict = {
     "TF_USE_TRI_PE": "bool",
     "TF_TRAIN_MODEL": "bool",
     "TF_SHOW_RESULT": "bool",
-    "TF_PRINT_LOG": "bool",
+    "TF_PRINT_LOSS": "bool",
     "TF_PRINT_PSNR": "bool",
-    "TF_WRITE_TIME": "bool",
+    "TF_PRINT_TIME": "bool",
     "TF_WRITE_PSNR": "bool",
-    "TF_USE_MISS_QUANTIZE": "bool",
+    "TF_WRITE_TIME": "bool",
 }
 
 # 圧縮する画像のパス
@@ -91,14 +91,14 @@ INTERVAL_SAVE_MODEL = 100000        # 学習途中のモデルを保存する間
 
 TF_NO_MIP = True                    # mipmapを生成しない
 TF_USE_TRI_PE = True                # 三角関数ではなく、三角波に基づいた位置エンコーディングを使用する（もう使ってない）
-TF_USE_MISS_QUANTIZE = False        # クオンタイズ関数を修正前のものを使う
 TF_TRAIN_MODEL = True               # 学習するかどうか（Falseのとき、学習済みモデルをロードする）
 
 TF_SHOW_RESULT = False              # 結果をmatplotlibかなんかで表示
-TF_PRINT_LOG = True                 # 一定間隔でlogをprintする
+TF_PRINT_LOSS = True                # 一定間隔でlossをprintする
 TF_PRINT_PSNR = True                # 一定間隔でpsnrをprintする
-TF_WRITE_TIME = True                # Tensorboardに学習ステップごとの時間を記録する
+TF_PRINT_TIME = True                # 一定間隔で時間をprintする
 TF_WRITE_PSNR = True                # Tensorboardに学習ステップごとのPSNRを記録する
+TF_WRITE_TIME = True                # Tensorboardに学習ステップごとの時間を記録する
 
 # コマンドラインから変数を取得し値を更新
 if len(sys.argv) > 1:

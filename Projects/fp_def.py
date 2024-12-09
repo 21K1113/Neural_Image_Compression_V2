@@ -153,12 +153,14 @@ def create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_c
 
 
 # fpをクランプする
-def fp_quantize_clamp(fp, fl, num_bits):
-    q_min = -(pow(2, num_bits) - 1) / pow(2, num_bits + 1)
-    q_max = 1 / 2
+def fp_quantize_clamp(fp, fl, g0_bit, g1_bit):
+    q0_min = -(pow(2, g0_bit) - 1) / pow(2, g0_bit + 1)
+    q0_max = 1 / 2
+    q1_min = -(pow(2, g1_bit) - 1) / pow(2, g1_bit + 1)
+    q1_max = 1 / 2
     with torch.no_grad():
-        fp[fl * 2].clamp_(q_min, q_max)
-        fp[fl * 2 + 1].clamp_(q_min, q_max)
+        fp[fl * 2].clamp_(q0_min, q0_max)
+        fp[fl * 2 + 1].clamp_(q1_min, q1_max)
 
 
 # fpを量子化する（クランプされていることが前提）
@@ -169,13 +171,13 @@ def fp_quantize(fp, fl, num_bits):
 
 
 # fpをすべて量子化する  float -> float
-def fp_all_quantize(fp, g0_bits, g1_bits, miss=False):
+def fp_all_quantize(fp, g0_bits, g1_bits):
     quantized_fp = []
     for i, g in enumerate(fp):
         if i % 2 == 0:
-            quantized_g = quantize4fp(g, g0_bits, miss)
+            quantized_g = quantize4fp(g, g0_bits)
         else:  # i % 2 == 1
-            quantized_g = quantize4fp(g, g1_bits, miss)
+            quantized_g = quantize4fp(g, g1_bits)
         quantized_fp.append(quantized_g)
     return quantized_fp
 
@@ -207,3 +209,6 @@ def fp_load(compressed_fp, g0_bits, g1_bits, mlt_dtype):
 def fp_freeze(fp):
     for g in fp:
         g.requires_grad = False
+
+
+

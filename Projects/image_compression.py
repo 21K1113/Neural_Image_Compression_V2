@@ -133,6 +133,7 @@ def train_models(fp):
     # 単一の画像での訓練ループ
     accumulator = 0.0
     judge_freeze = True
+    start_interval_time = time.perf_counter()
     for epoch in range(NUM_EPOCH):
         # print(epoch)
         accumulator += UNIFORM_DISTRIBUTION_RATE
@@ -144,7 +145,9 @@ def train_models(fp):
         if epoch > NUM_EPOCH * 0.95:
             if judge_freeze:
                 fp_freeze(fp)
-                fp = fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT, TF_USE_MISS_QUANTIZE)
+                before_fp = fp
+                fp = fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT)
+                diff_fps(before_fp, fp, PRINTLOG_PATH)
                 judge_freeze = False
         start_epoch_time = time.perf_counter()
         inputs, coords, lod = random_crop_dataset(images, CROP_SIZE, NUM_CROP, uniform_distribution, dim=FP_DIMENSION)
@@ -163,8 +166,8 @@ def train_models(fp):
         target = inputs.reshape(-1, 3)
         loss = criterion(decoder_output, target)
         if TF_WRITE_PSNR:
-            psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
-                                  quantize_from_norm_to_bit(target, OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
+            psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BIT),
+                                  quantize_from_norm_to_bit(target, OUTPUT_BIT))
 
         # 逆伝播と最適化
         optimizer.zero_grad()
@@ -172,7 +175,7 @@ def train_models(fp):
         optimizer.step()
         scheduler.step()
 
-        fp_quantize_clamp(fp, fl, FP_G0_BIT)
+        fp_quantize_clamp(fp, fl, FP_G0_BIT, FP_G1_BIT)
 
         end_epoch_time = time.perf_counter()
 
@@ -185,26 +188,28 @@ def train_models(fp):
             writer.add_scalar('PSNR/epoch', psnr, epoch + 1)
 
         if (epoch + 1) % INTERVAL_PRINT == 0:
+            printlog = f'Epoch [{epoch + 1}/{NUM_EPOCH}]'
+            if TF_PRINT_LOSS:
+                printlog += f' Loss: {loss.item():.4f}'
             if TF_PRINT_PSNR:
-                reconstructed = decode_image(fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT, TF_USE_MISS_QUANTIZE), decoder,
-                                             i, False)
+                reconstructed = decode_image(fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT), decoder, 0, False)
                 if FP_DIMENSION == 2:
                     all_psnr = calculate_psnr(
-                        quantize_from_norm_to_bit(reconstructed, OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
-                        quantize_from_norm_to_bit(images[0].permute(1, 2, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
+                        quantize_from_norm_to_bit(reconstructed, OUTPUT_BIT),
+                        quantize_from_norm_to_bit(images[0].permute(1, 2, 0), OUTPUT_BIT))
                 elif FP_DIMENSION == 3:
                     all_psnr = calculate_psnr(
-                        quantize_from_norm_to_bit(reconstructed, OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
-                        quantize_from_norm_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE))
+                        quantize_from_norm_to_bit(reconstructed, OUTPUT_BIT),
+                        quantize_from_norm_to_bit(images[0].permute(1, 2, 3, 0), OUTPUT_BIT))
                 writer.add_scalar('PSNR/mip0', all_psnr, epoch + 1)
-                if TF_PRINT_LOG:
-                    print_(f'Epoch [{epoch + 1}/{NUM_EPOCH}], Loss: {loss.item():.4f} PSNR: {all_psnr:.4f}',
-                           PRINTLOG_PATH)
-                else:
-                    print_(f'Epoch [{epoch + 1}/{NUM_EPOCH}], PSNR: {all_psnr:.4f}',
-                           PRINTLOG_PATH)
-            elif TF_PRINT_LOG:
-                print_(f'Epoch [{epoch + 1}/{NUM_EPOCH}], Loss: {loss.item():.4f}', PRINTLOG_PATH)
+                printlog += f' PSNR: {all_psnr:.4f}'
+            if TF_WRITE_TIME:
+                end_interval_time = time.perf_counter()
+                elapsed_time = end_interval_time - start_interval_time
+                printlog += f' Time: {elapsed_time:.4f}'
+                start_interval_time = time.perf_counter()
+            if TF_PRINT_PSNR or TF_PRINT_LOSS or TF_WRITE_TIME:
+                print_(printlog, PRINTLOG_PATH)
             else:
                 print(f'Epoch [{epoch + 1}/{NUM_EPOCH}]')
 
@@ -301,7 +306,7 @@ def process_images(train_model, fp):
         torch.save(compressed_fp,
                    make_filename_by_seq('feature_pyramid/{save_name}', f'{SAVE_NAME}_feature_pyramid.pth'))
 
-        fp = fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT, TF_USE_MISS_QUANTIZE)
+        fp = fp_all_quantize(fp, FP_G0_BIT, FP_G1_BIT)
     else:
         # デコーダの訓練済みパラメータのロード
         decoder.load_state_dict(torch.load(f'model/{SAVE_NAME}_decoder.pth'))
@@ -317,7 +322,7 @@ def process_images(train_model, fp):
         end = time.perf_counter()
         print_("展開時間：" + str(end - start), PRINTLOG_PATH)
 
-        reconstructed_image = quantize_from_norm_to_bit(reconstructed.cpu().numpy(), OUTPUT_BIT, TF_USE_MISS_QUANTIZE)
+        reconstructed_image = quantize_from_norm_to_bit(reconstructed.cpu().numpy(), OUTPUT_BIT)
         reconstructed_image = reconstructed_image.astype(bits2dtype_np(OUTPUT_BIT))
         reconstructed_images.append(reconstructed_image)
 
@@ -331,12 +336,12 @@ def process_images(train_model, fp):
                 row = x // (IMAGE_SIZE // size)  # 行の計算
                 col = x % (IMAGE_SIZE // size)  # 列の計算
                 # print(row * size, (row + 1) * size, col * size, (col + 1) * size)
-                reconstructed_movie[x] = reconstructed_images[0][row * size:(row + 1) * size,
+                reconstructed_movie[x] = reconstructed_images[i][row * size:(row + 1) * size,
                                          col * size:(col + 1) * size, :]
 
-            timelaps(reconstructed_movie, make_filename_by_seq(f'image/{SAVE_NAME}', f'{SAVE_NAME}_0.avi'))
+            timelaps(reconstructed_movie, make_filename_by_seq(f'image/{SAVE_NAME}', f'{SAVE_NAME}_{i}.avi'))
         elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4:
-            timelaps(reconstructed_image, make_filename_by_seq(f'image/{SAVE_NAME}', f'{SAVE_NAME}_0.avi'))
+            timelaps(reconstructed_image, make_filename_by_seq(f'image/{SAVE_NAME}', f'{SAVE_NAME}_{i}.avi'))
 
     return reconstructed_images
 
@@ -420,11 +425,11 @@ print(np.mean(np.abs(a)))
 for i in range(MAX_MIP_LEVEL + 1):
     if IMAGE_DIMENSION == 2 or COMPRESSION_METHOD == 2:
         psnr = calculate_psnr(
-            quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
+            quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 0), OUTPUT_BIT),
             reconstructed_images[i].astype(np.float32))
     elif IMAGE_DIMENSION == 3:
         psnr = calculate_psnr(
-            quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 3, 0), OUTPUT_BIT, TF_USE_MISS_QUANTIZE),
+            quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 3, 0), OUTPUT_BIT),
             reconstructed_images[i].astype(np.float32))
     print_(f"psnr: {psnr}", PRINTLOG_PATH)
 
