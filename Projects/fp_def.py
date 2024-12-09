@@ -147,7 +147,9 @@ def create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_c
         g1 = create_g1_k(list(g1), g1_k_grid)
     elif method == 3 or method == 4:
         g1 = create_g1_k_3d(list(g1), g1_k_grid)
-    return *g0, *g1, pe
+    stacked_g1 = torch.stack(g1)
+    sum_g1 = torch.sum(stacked_g1, dim=0)
+    return *g0, sum_g1, pe
 
 
 # fpをクランプする

@@ -108,26 +108,24 @@ def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=
 
 
 def decoder_input_merge_2d(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
-    g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, pe = (
+    g0_0, g0_1, g0_2, g0_3, g1, pe = (
         create_g0_g1(fp, fl, coord.view(2, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
                      COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
-    return torch.cat([g0_0, g0_1, g0_2, g0_3, g1_0 + g1_1 + g1_2 + g1_3, pe, lod_tensor * mip_level], dim=0)
+    return torch.cat([g0_0, g0_1, g0_2, g0_3, g1, pe, lod_tensor * mip_level], dim=0)
 
 
 def decoder_input_merge_3d(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
-    g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
+    g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1, pe = (
         create_g0_g1(fp, fl, coord.view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
                      COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
-    return torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7,
-                      g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
+    return torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1, pe, lod_tensor * mip_level], dim=0)
 
 
 def decoder_input_merge_3d_v2(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
-    g0_0, g0_1, g0_2, g0_3, g1_0, g1_1, g1_2, g1_3, g1_4, g1_5, g1_6, g1_7, pe = (
+    g0_0, g0_1, g0_2, g0_3, g1, pe = (
         create_g0_g1(fp, fl, coord.view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
                      COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
-    return torch.cat([g0_0, g0_1, g0_2, g0_3,
-                      g1_0 + g1_1 + g1_2 + g1_3 + g1_4 + g1_5 + g1_6 + g1_7, pe, lod_tensor * mip_level], dim=0)
+    return torch.cat([g0_0, g0_1, g0_2, g0_3, g1, pe, lod_tensor * mip_level], dim=0)
 
 
 # モデルの学習
