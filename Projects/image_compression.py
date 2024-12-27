@@ -74,9 +74,13 @@ class ColorDecoder(nn.Module):
 def add_noise_for_decoder_input(decoder_input):
     fp_g0_c = FEATURE_PYRAMID_G0_CHANNEL
     fp_g1_c = FEATURE_PYRAMID_G1_CHANNEL
-    decoder_input[0:4 * fp_g0_c] += (torch.rand_like(decoder_input[0:4 * fp_g0_c]) - 0.5) / pow(2, FP_G0_BIT)
-    decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c] += (torch.rand_like(
-        decoder_input[4 * fp_g0_c:4 * fp_g0_c + fp_g1_c]) - 0.5) / pow(2, FP_G1_BIT)
+    if COMPRESSION_METHOD == 3:
+        g0_k = 8
+    else:
+        g0_k = 4
+    decoder_input[0:g0_k * fp_g0_c] += (torch.rand_like(decoder_input[0:g0_k * fp_g0_c]) - 0.5) / pow(2, FP_G0_BIT)
+    decoder_input[g0_k * fp_g0_c:g0_k * fp_g0_c + fp_g1_c] += (torch.rand_like(
+        decoder_input[g0_k * fp_g0_c:g0_k * fp_g0_c + fp_g1_c]) - 0.5) / pow(2, FP_G1_BIT)
     return decoder_input
 
 
