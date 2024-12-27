@@ -88,9 +88,9 @@ def add_noise_to_grid(g, bit):
     g += (torch.rand_like(g) - 0.5) / pow(2, bit)
     return g
 
-def add_noise_to_tuple(tensors, scale_factor):
+def add_noise_to_tuple(gs, bit):
     return tuple(
-        tensor + (torch.rand_like(tensor) - 0.5) / scale_factor for tensor in tensors
+        g + (torch.rand_like(g) - 0.5) / pow(2, bit) for g in gs
     )
 
 
