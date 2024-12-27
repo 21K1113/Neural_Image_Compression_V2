@@ -84,10 +84,20 @@ def add_noise_for_decoder_input(decoder_input):
     return decoder_input
 
 
+def add_noise_to_grid(g, bit):
+    g += (torch.rand_like(g) - 0.5) / pow(2, bit)
+    return g
+
+def add_noise_to_tuple(tensors, scale_factor):
+    return tuple(
+        tensor + (torch.rand_like(tensor) - 0.5) / scale_factor for tensor in tensors
+    )
+
+
 def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=0):
     decoder_input = []
     fl = feature_pyramid_mip_levels_dict[mip_level]
-    if image_size:
+    if image_size != 0:
         sample_number = image_size
     else:
         sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
@@ -96,40 +106,16 @@ def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=
     sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(FP_DIMENSION, 1)
     lod_tensor = torch.ones(1, pow(sample_number, FP_DIMENSION), dtype=MLP_DTYPE, device=DEVICE)
     for i in range(num_crop):
-        if COMPRESSION_METHOD == 1 or COMPRESSION_METHOD == 2:
-            decoder_input.append(decoder_input_merge_2d(fp, fl, coords[i], step_number, pe_step_number, sample_ranges,
-                                                        lod_tensor, mip_level))
-        elif COMPRESSION_METHOD == 3:
-            decoder_input.append(decoder_input_merge_3d(fp, fl, coords[i], step_number, pe_step_number, sample_ranges,
-                                                        lod_tensor, mip_level))
-        elif COMPRESSION_METHOD == 4:
-            decoder_input.append(decoder_input_merge_3d_v2(fp, fl, coords[i], step_number, pe_step_number,
-                                                           sample_ranges, lod_tensor, mip_level))
+        g0s, g1s, pe = create_g0_g1_pe(fp, fl, coords[i].view(FP_DIMENSION, 1), step_number, pe_step_number,
+                                     sample_ranges, PE_CHANNEL, COMPRESSION_METHOD, DEVICE, MLP_DTYPE)
+        g0s = add_noise_to_tuple(g0s, FP_G0_BIT)
+        g1s = add_noise_to_tuple(g1s, FP_G1_BIT)
+        g1 = create_sum_g1(g1s, sample_ranges, coords[i].view(FP_DIMENSION, 1), step_number, COMPRESSION_METHOD)
+        decoder_input.append(torch.cat([*g0s, g1, pe, lod_tensor * mip_level], dim=0))
     decoder_input = torch.cat(decoder_input, dim=1)
     if add_noise:
         decoder_input = add_noise_for_decoder_input(decoder_input)
     return decoder_input.T
-
-
-def decoder_input_merge_2d(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
-    g0_0, g0_1, g0_2, g0_3, g1, pe = (
-        create_g0_g1(fp, fl, coord.view(2, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
-                     COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
-    return torch.cat([g0_0, g0_1, g0_2, g0_3, g1, pe, lod_tensor * mip_level], dim=0)
-
-
-def decoder_input_merge_3d(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
-    g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1, pe = (
-        create_g0_g1(fp, fl, coord.view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
-                     COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
-    return torch.cat([g0_0, g0_1, g0_2, g0_3, g0_4, g0_5, g0_6, g0_7, g1, pe, lod_tensor * mip_level], dim=0)
-
-
-def decoder_input_merge_3d_v2(fp, fl, coord, step_number, pe_step_number, sample_ranges, lod_tensor, mip_level):
-    g0_0, g0_1, g0_2, g0_3, g1, pe = (
-        create_g0_g1(fp, fl, coord.view(3, 1), step_number, pe_step_number, sample_ranges, PE_CHANNEL,
-                     COMPRESSION_METHOD, DEVICE, MLP_DTYPE))
-    return torch.cat([g0_0, g0_1, g0_2, g0_3, g1, pe, lod_tensor * mip_level], dim=0)
 
 
 # モデルの学習
