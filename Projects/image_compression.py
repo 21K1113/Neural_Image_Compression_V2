@@ -107,13 +107,36 @@ def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=
     sample_ranges = torch.arange(sample_number, dtype=MLP_DTYPE, device=DEVICE).repeat(FP_DIMENSION, 1)
     lod_tensor = torch.ones(1, pow(sample_number, FP_DIMENSION), dtype=MLP_DTYPE, device=DEVICE)
     for i in range(num_crop):
-        g0s, g1s, pe = create_g0_g1_pe(fp, fl, coords[i].view(FP_DIMENSION, 1), step_number, pe_step_number,
-                                     sample_ranges, PE_CHANNEL, COMPRESSION_METHOD, DEVICE, MLP_DTYPE)
+        range_add_coord = sample_ranges + coords[i].view(FP_DIMENSION, 1)  # (2, l) or (3, l)
+        step_tensor = (range_add_coord + 0.5) * step_number - 0.5
+        g0_indices = torch.floor(step_tensor).to(torch.int)
+        g1_indices = (step_tensor // 2).to(torch.int)
+        pe_indices = range_add_coord * pe_step_number
+        g0_flat = create_meshgrid(g0_indices)
+        g1_flat = create_meshgrid(g1_indices)
+        pe_flat = create_meshgrid(pe_indices)
+        if COMPRESSION_METHOD == 1 or COMPRESSION_METHOD == 2:
+            g0s = create_g(fp, fl, 0, *g0_flat)  # tuple
+            g1s = create_g(fp, fl, 1, *g1_flat)  # tuple
+        elif COMPRESSION_METHOD == 3:
+            g0s = create_g_3d(fp, fl, 0, *g0_flat)  # tuple
+            g1s = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
+        elif COMPRESSION_METHOD == 4:
+            g0s = create_g_3d_v2(fp, fl, 0, *g0_flat)  # tuple
+            g1s = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
+        pe = triangular_positional_encoding(torch.stack(pe_flat), PE_CHANNEL, DEVICE, MLP_DTYPE)
         if add_noise:
             g0s = add_noise_to_tuple(g0s, FP_G0_BIT)
             g1s = add_noise_to_tuple(g1s, FP_G1_BIT)
-        g1 = create_sum_g1(g1s, sample_ranges, coords[i].view(FP_DIMENSION, 1), step_number, COMPRESSION_METHOD)
-        decoder_input.append(torch.cat([*g0s, g1, pe, lod_tensor * mip_level], dim=0))
+        g1_k = step_tensor / 2 % 1
+        g1_k_grid = create_meshgrid(g1_k)
+        if COMPRESSION_METHOD == 1 or COMPRESSION_METHOD == 2:
+            g1s = create_g1_k(list(g1s), g1_k_grid)
+        elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4:
+            g1s = create_g1_k_3d(list(g1s), g1_k_grid)
+        stacked_g1 = torch.stack(g1s)
+        sum_g1 = torch.sum(stacked_g1, dim=0)
+        decoder_input.append(torch.cat([*g0s, sum_g1, pe, lod_tensor * mip_level], dim=0))
     decoder_input = torch.cat(decoder_input, dim=1)
     return decoder_input.T
 

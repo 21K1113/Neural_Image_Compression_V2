@@ -57,7 +57,7 @@ if __name__ == "__main__":
         [70, 80, 90]
     ])
 
-    scale = 1  # Scaling factor
+    scale = 2  # Scaling factor
     x, y = 0, 0  # Coordinates in the scaled image
 
     value = bilinear_interpolation_with_center(image, scale, x, y)

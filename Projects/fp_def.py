@@ -151,36 +151,6 @@ def create_meshgrid(any_indices):
     return [grid.reshape(-1) for grid in any_grid]
 
 
-def create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_channels, method, device, dtype):
-    range_add_coord = sample_ranges + coord  # (2, l) or (3, l)
-    step_tensor = range_add_coord * step_number
-    g0_indices = torch.floor(step_tensor).to(torch.int)
-    g1_indices = (step_tensor // 2).to(torch.int)
-    pe_indices = range_add_coord * pe_step_number
-    g0_flat = create_meshgrid(g0_indices)
-    g1_flat = create_meshgrid(g1_indices)
-    pe_flat = create_meshgrid(pe_indices)
-    if method == 1 or method == 2:
-        g0 = create_g(fp, fl, 0, *g0_flat)  # tuple
-        g1 = create_g(fp, fl, 1, *g1_flat)  # tuple
-    elif method == 3:
-        g0 = create_g_3d(fp, fl, 0, *g0_flat)  # tuple
-        g1 = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
-    elif method == 4:
-        g0 = create_g_3d_v2(fp, fl, 0, *g0_flat)  # tuple
-        g1 = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
-    pe = triangular_positional_encoding(torch.stack(pe_flat), pe_channels, device, dtype)
-    g1_k = (range_add_coord + 0.5) * step_number / 2 % 1
-    g1_k_grid = create_meshgrid(g1_k)
-    if method == 1 or method == 2:
-        g1 = create_g1_k(list(g1), g1_k_grid)
-    elif method == 3 or method == 4:
-        g1 = create_g1_k_3d(list(g1), g1_k_grid)
-    stacked_g1 = torch.stack(g1)
-    sum_g1 = torch.sum(stacked_g1, dim=0)
-    return *g0, sum_g1, pe
-
-
 def create_g0_g1_pe(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_channels, method, device, dtype):
     range_add_coord = sample_ranges + coord  # (2, l) or (3, l)
     step_tensor = (range_add_coord + 0.5) * step_number - 0.5
