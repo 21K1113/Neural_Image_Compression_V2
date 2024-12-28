@@ -59,9 +59,9 @@ def create_pyramid(base_size, dim, g0_channel, g0_bit, g1_channel, g1_bit, devic
             channel = g1_channel
             bit = g1_bit
         if dim == 2:
-            array = torch.rand(channel, size + 1, size + 1, device=device, dtype=dtype)
+            array = torch.rand(channel, size, size, device=device, dtype=dtype)
         elif dim == 3:
-            array = torch.rand(channel, size + 1, size + 1, size + 1, device=device, dtype=dtype)
+            array = torch.rand(channel, size, size, size, device=device, dtype=dtype)
         q_min = -(pow(2, bit) - 1) / pow(2, bit + 1)
         q_max = 1 / 2
         grid = ((q_max - q_min) * array + q_min).requires_grad_(True)
@@ -70,30 +70,59 @@ def create_pyramid(base_size, dim, g0_channel, g0_bit, g1_channel, g1_bit, devic
 
 
 def create_g(fp, fl, j, x_indices, y_indices):
-    g_0 = fp[fl * 2 + j][:, y_indices, x_indices]
-    g_1 = fp[fl * 2 + j][:, y_indices + 1, x_indices]
-    g_2 = fp[fl * 2 + j][:, y_indices, x_indices + 1]
-    g_3 = fp[fl * 2 + j][:, y_indices + 1, x_indices + 1]
+    g = fp[fl * 2 + j]
+    height, width = g.shape[-2], g.shape[-1]
+
+    x0 = torch.clamp(x_indices, 0, width - 1)
+    x1 = torch.clamp(x_indices + 1, 0, width - 1)
+    y0 = torch.clamp(y_indices, 0, height - 1)
+    y1 = torch.clamp(y_indices + 1, 0, height - 1)
+
+    g_0 = g[:, y0, x0]
+    g_1 = g[:, y1, x0]
+    g_2 = g[:, y0, x1]
+    g_3 = g[:, y1, x1]
     return g_0, g_1, g_2, g_3
 
 
 def create_g_3d(fp, fl, j, x_indices, y_indices, z_indices):
-    g_0 = fp[fl * 2 + j][:, z_indices, y_indices, x_indices]
-    g_1 = fp[fl * 2 + j][:, z_indices + 1, y_indices, x_indices]
-    g_2 = fp[fl * 2 + j][:, z_indices, y_indices + 1, x_indices]
-    g_3 = fp[fl * 2 + j][:, z_indices + 1, y_indices + 1, x_indices]
-    g_4 = fp[fl * 2 + j][:, z_indices, y_indices, x_indices + 1]
-    g_5 = fp[fl * 2 + j][:, z_indices + 1, y_indices, x_indices + 1]
-    g_6 = fp[fl * 2 + j][:, z_indices, y_indices + 1, x_indices + 1]
-    g_7 = fp[fl * 2 + j][:, z_indices + 1, y_indices + 1, x_indices + 1]
+    g = fp[fl * 2 + j]
+    depth, height, width = g.shape[-3], g.shape[-2], g.shape[-1]
+
+    x0 = torch.clamp(x_indices, 0, width - 1)
+    x1 = torch.clamp(x_indices + 1, 0, width - 1)
+    y0 = torch.clamp(y_indices, 0, height - 1)
+    y1 = torch.clamp(y_indices + 1, 0, height - 1)
+    z0 = torch.clamp(z_indices, 0, depth - 1)
+    z1 = torch.clamp(z_indices + 1, 0, depth - 1)
+
+    g_0 = g[:, z0, y0, x0]
+    g_1 = g[:, z1, y0, x0]
+    g_2 = g[:, z0, y1, x0]
+    g_3 = g[:, z1, y1, x0]
+    g_4 = g[:, z0, y0, x1]
+    g_5 = g[:, z1, y0, x1]
+    g_6 = g[:, z0, y1, x1]
+    g_7 = g[:, z1, y1, x1]
     return g_0, g_1, g_2, g_3, g_4, g_5, g_6, g_7
 
 
 def create_g_3d_v2(fp, fl, j, x_indices, y_indices, z_indices):
-    g_0 = fp[fl * 2 + j][:, z_indices, y_indices, x_indices]
-    g_1 = fp[fl * 2 + j][:, z_indices + 1, y_indices + 1, x_indices]
-    g_2 = fp[fl * 2 + j][:, z_indices + 1, y_indices, x_indices + 1]
-    g_3 = fp[fl * 2 + j][:, z_indices, y_indices + 1, x_indices + 1]
+    g = fp[fl * 2 + j]
+    depth, height, width = g.shape[-3], g.shape[-2], g.shape[-1]
+
+    # Clamp indices with a mask to handle boundary conditions
+    x0 = torch.clamp(x_indices, 0, width - 1)
+    x1 = torch.clamp(x_indices + 1, 0, width - 1)
+    y0 = torch.clamp(y_indices, 0, height - 1)
+    y1 = torch.clamp(y_indices + 1, 0, height - 1)
+    z0 = torch.clamp(z_indices, 0, depth - 1)
+    z1 = torch.clamp(z_indices + 1, 0, depth - 1)
+
+    g_0 = g[:, z0, y0, x0]
+    g_1 = g[:, z1, y1, x0]
+    g_2 = g[:, z1, y0, x1]
+    g_3 = g[:, z0, y1, x1]
     return g_0, g_1, g_2, g_3
 
 
@@ -154,7 +183,7 @@ def create_g0_g1(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_c
 
 def create_g0_g1_pe(fp, fl, coord, step_number, pe_step_number, sample_ranges, pe_channels, method, device, dtype):
     range_add_coord = sample_ranges + coord  # (2, l) or (3, l)
-    step_tensor = range_add_coord * step_number
+    step_tensor = (range_add_coord + 0.5) * step_number - 0.5
     g0_indices = torch.floor(step_tensor).to(torch.int)
     g1_indices = (step_tensor // 2).to(torch.int)
     pe_indices = range_add_coord * pe_step_number

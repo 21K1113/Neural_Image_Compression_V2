@@ -88,6 +88,7 @@ def add_noise_to_grid(g, bit):
     g += (torch.rand_like(g) - 0.5) / pow(2, bit)
     return g
 
+
 def add_noise_to_tuple(gs, bit):
     return tuple(
         g + (torch.rand_like(g) - 0.5) / pow(2, bit) for g in gs
@@ -263,8 +264,8 @@ feature_pyramid, feature_pyramid_levels = create_pyramid(FEATURE_PYRAMID_SIZE, F
                                                          FEATURE_PYRAMID_G0_CHANNEL, FP_G0_BIT,
                                                          FEATURE_PYRAMID_G1_CHANNEL, FP_G1_BIT,
                                                          DEVICE, MLP_DTYPE, TF_NO_MIP)
-for fp in feature_pyramid:
-    safe_statistics(fp, PRINTLOG_PATH)
+for g in feature_pyramid:
+    safe_statistics(g, PRINTLOG_PATH)
 feature_pyramid_mip_levels_dict = create_pyramid_mip_levels(IMAGE_SIZE, FEATURE_PYRAMID_SIZE_RATE)
 optimizer = optim.Adam([
     {'params': feature_pyramid, 'lr': 0.01},  # fpの初期学習率
