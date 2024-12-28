@@ -109,13 +109,12 @@ def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=
     for i in range(num_crop):
         g0s, g1s, pe = create_g0_g1_pe(fp, fl, coords[i].view(FP_DIMENSION, 1), step_number, pe_step_number,
                                      sample_ranges, PE_CHANNEL, COMPRESSION_METHOD, DEVICE, MLP_DTYPE)
-        g0s = add_noise_to_tuple(g0s, FP_G0_BIT)
-        g1s = add_noise_to_tuple(g1s, FP_G1_BIT)
+        if add_noise:
+            g0s = add_noise_to_tuple(g0s, FP_G0_BIT)
+            g1s = add_noise_to_tuple(g1s, FP_G1_BIT)
         g1 = create_sum_g1(g1s, sample_ranges, coords[i].view(FP_DIMENSION, 1), step_number, COMPRESSION_METHOD)
         decoder_input.append(torch.cat([*g0s, g1, pe, lod_tensor * mip_level], dim=0))
     decoder_input = torch.cat(decoder_input, dim=1)
-    if add_noise:
-        decoder_input = add_noise_for_decoder_input(decoder_input)
     return decoder_input.T
 
 
