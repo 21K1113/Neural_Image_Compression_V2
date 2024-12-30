@@ -148,6 +148,7 @@ def train_models(fp):
     judge_freeze = True
     start_interval_time = time.perf_counter()
     for epoch in range(NUM_EPOCH):
+        st_time = time.perf_counter()
         # print(epoch)
         accumulator += UNIFORM_DISTRIBUTION_RATE
         if accumulator >= 1.0:
@@ -163,6 +164,7 @@ def train_models(fp):
                 diff_fps(before_fp, fp, PRINTLOG_PATH)
                 judge_freeze = False
         start_epoch_time = time.perf_counter()
+        st = time.perf_counter()
         inputs, coords, lod = random_crop_dataset(images, CROP_SIZE, NUM_CROP, uniform_distribution, dim=FP_DIMENSION)
         # print(coord)
         # print(convert_coordinate_start(device, coord, 8, 8))
@@ -172,33 +174,48 @@ def train_models(fp):
             add_noise = True
         else:
             add_noise = False
-
+        print_("1 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
+        st = time.perf_counter()
         decoder_input = create_decoder_input(fp, coords, NUM_CROP, lod, add_noise)
-
+        print_("2 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
+        st = time.perf_counter()
         decoder_output = decoder(decoder_input)
+        print_("3 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
+        st = time.perf_counter()
         target = inputs.reshape(-1, 3)
         loss = criterion(decoder_output, target)
         if TF_WRITE_PSNR:
             psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BIT),
                                   quantize_from_norm_to_bit(target, OUTPUT_BIT))
-
+        print_("4 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
+        st = time.perf_counter()
         # 逆伝播と最適化
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         scheduler.step()
+        print_("5 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
+        st = time.perf_counter()
 
         fp_quantize_clamp(fp, fl, FP_G0_BIT, FP_G1_BIT)
+        print_("6 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
+        st = time.perf_counter()
 
         end_epoch_time = time.perf_counter()
 
         elapsed_time = end_epoch_time - start_epoch_time
 
-        writer.add_scalar('Loss/train_epoch_label', loss.item(), epoch + 1)
+        # writer.add_scalar('Loss/train_epoch_label', loss.item(), epoch + 1)
+        writer.add_scalar('Loss/train_epoch_label', loss.detach().cpu().numpy(), epoch + 1)
+        print_("1011 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
+        st = time.perf_counter()
         if TF_WRITE_TIME:
             writer.add_scalar('Time/epoch_label', elapsed_time, epoch + 1)
         if TF_WRITE_PSNR:
             writer.add_scalar('PSNR/epoch', psnr, epoch + 1)
+
+        print_("101 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
+        st = time.perf_counter()
 
         if (epoch + 1) % INTERVAL_PRINT == 0:
             printlog = f'Epoch [{epoch + 1}/{NUM_EPOCH}]'
@@ -225,10 +242,12 @@ def train_models(fp):
                 print_(printlog, PRINTLOG_PATH)
             else:
                 print(f'Epoch [{epoch + 1}/{NUM_EPOCH}]')
+        print_("10 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
 
         if (epoch + 1) % INTERVAL_SAVE_MODEL == 0:
             # エンコーダとデコーダの保存
             torch.save(decoder.state_dict(), f'model/{SAVE_NAME}_{epoch}_decoder.pth')
+        print_("11 : " + str(time.perf_counter() - st_time), PRINTLOG_PATH)
 
 
 # デコード
