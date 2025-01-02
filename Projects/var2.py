@@ -30,8 +30,12 @@ over_write_variable_dict = {
     "HIDDEN_LAYER_CHANNEL": "int",
     "CROP_MIP_LEVEL": "int",
     "NUM_CROP": "int",
+
     "INTERVAL_PRINT": "int",
     "INTERVAL_SAVE_MODEL": "int",
+    "INTERVAL_WRITER_LOSS": "int",
+    "INTERVAL_WRITER_PSNR": "int",
+    "INTERVAL_WRITER_TIME": "int",
 
     "TF_NO_MIP": "bool",
     "TF_USE_TRI_PE": "bool",
@@ -79,7 +83,7 @@ HIDDEN_LAYER_CHANNEL = 64           # デコーダの中間層のノード数
 
 FEATURE_PYRAMID_G0_CHANNEL = 12     # 特徴ピラミッドのG0のチャンネル数
 FP_G0_BIT = 8                       # 特徴ピラミッドのG0の量子化ビット数
-FEATURE_PYRAMID_SIZE_RATE = 2       # 特徴ピラミッドのG0のサイズ比率（4なら1/4になる）
+FEATURE_PYRAMID_SIZE_RATE = 2       # 特徴ピラミッドのG0のビットサイズ比率（2なら1/4になる）
 FEATURE_PYRAMID_G1_CHANNEL = 12     # 特徴ピラミッドのG1のチャンネル数
 FP_G1_BIT = 8                       # 特徴ピラミッドのG0の量子化ビット数
 
@@ -87,6 +91,9 @@ CROP_MIP_LEVEL = 8                  # ランダムクロップのクロップサ
 NUM_CROP = 8                        # ランダムクロップの数（＝バッチ数）
 
 INTERVAL_PRINT = 100                # logやPSNRのprintをする間隔
+INTERVAL_WRITER_LOSS = 100          # lossのwriteをする間隔
+INTERVAL_WRITER_PSNR = 100          # lossのwriteをする間隔
+INTERVAL_WRITER_TIME = 100          # lossのwriteをする間隔
 INTERVAL_SAVE_MODEL = 100000        # 学習途中のモデルを保存する間隔
 
 TF_NO_MIP = True                    # mipmapを生成しない
