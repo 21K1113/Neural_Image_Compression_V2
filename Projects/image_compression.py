@@ -147,12 +147,7 @@ def train_models(fp):
     accumulator = 0.0
     judge_freeze = True
     start_interval_time = time.perf_counter()
-    st = time.perf_counter()
     for epoch in range(NUM_EPOCH):
-        torch.cuda.synchronize()
-        print_("0 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st_time = time.perf_counter()
-        st = time.perf_counter()
         # print(epoch)
         accumulator += UNIFORM_DISTRIBUTION_RATE
         if accumulator >= 1.0:
@@ -177,47 +172,24 @@ def train_models(fp):
             add_noise = True
         else:
             add_noise = False
-        torch.cuda.synchronize()
-        print_("1 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
+
         decoder_input = create_decoder_input(fp, coords, NUM_CROP, lod, add_noise)
-        torch.cuda.synchronize()
-        print_("2 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
+
         decoder_output = decoder(decoder_input)
-        torch.cuda.synchronize()
-        print_("3 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
+
         target = inputs.reshape(-1, 3)
         loss = criterion(decoder_output, target)
         if TF_WRITE_PSNR:
             psnr = calculate_psnr(quantize_from_norm_to_bit(decoder_output, OUTPUT_BIT),
                                   quantize_from_norm_to_bit(target, OUTPUT_BIT))
-        torch.cuda.synchronize()
-        print_("4 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
+
         # 逆伝播と最適化
         optimizer.zero_grad()
-        torch.cuda.synchronize()
-        print_("41 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
         loss.backward()
-        torch.cuda.synchronize()
-        print_("42 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
         optimizer.step()
-        torch.cuda.synchronize()
-        print_("43 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
         scheduler.step()
-        torch.cuda.synchronize()
-        print_("5 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
 
         fp_quantize_clamp(fp, fl, FP_G0_BIT, FP_G1_BIT)
-        torch.cuda.synchronize()
-        print_("6 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
 
         end_epoch_time = time.perf_counter()
 
@@ -227,19 +199,12 @@ def train_models(fp):
         if (epoch + 1) % INTERVAL_WRITER_LOSS == 0:
             writer.add_scalar('Loss/train_epoch_label', loss.detach().cpu().numpy(), epoch + 1)
 
-        torch.cuda.synchronize()
-        print_("1011 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
         if TF_WRITE_TIME:
             if (epoch + 1) % INTERVAL_WRITER_TIME == 0:
                 writer.add_scalar('Time/epoch_label', elapsed_time, epoch + 1)
         if TF_WRITE_PSNR:
             if (epoch + 1) % INTERVAL_WRITER_PSNR == 0:
                 writer.add_scalar('PSNR/epoch', psnr, epoch + 1)
-
-        torch.cuda.synchronize()
-        print_("101 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
 
         if (epoch + 1) % INTERVAL_PRINT == 0:
             printlog = f'Epoch [{epoch + 1}/{NUM_EPOCH}]'
@@ -266,16 +231,9 @@ def train_models(fp):
                 print_(printlog, PRINTLOG_PATH)
             else:
                 print(f'Epoch [{epoch + 1}/{NUM_EPOCH}]')
-        torch.cuda.synchronize()
-        print_("10 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        st = time.perf_counter()
         if (epoch + 1) % INTERVAL_SAVE_MODEL == 0:
             # エンコーダとデコーダの保存
             torch.save(decoder.state_dict(), f'model/{SAVE_NAME}_{epoch}_decoder.pth')
-        torch.cuda.synchronize()
-        print_("11 : " + str(time.perf_counter() - st), PRINTLOG_PATH)
-        print_("all : " + str(time.perf_counter() - st_time), PRINTLOG_PATH)
-        st = time.perf_counter()
 
 
 # デコード
