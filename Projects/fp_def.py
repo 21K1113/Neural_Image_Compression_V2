@@ -35,7 +35,7 @@ def create_pyramid_mip_levels(image_size, fp_size_rate):
     return feature_pyramid_dict
 
 
-def create_pyramid(base_size, dim, g0_channel, g0_bit, g1_channel, g1_bit, device, dtype, no_mip=False):
+def create_pyramid(base_size, dim, method, g0_channel, g0_bit, g1_channel, g1_bit, device, dtype, no_mip=False):
     """
     ピラミッド構造の配列を作成する関数
     :param base_size: 最下層の配列のサイズ
@@ -61,7 +61,10 @@ def create_pyramid(base_size, dim, g0_channel, g0_bit, g1_channel, g1_bit, devic
         if dim == 2:
             array = torch.rand(channel, size, size, device=device, dtype=dtype)
         elif dim == 3:
-            array = torch.rand(channel, size, size, size, device=device, dtype=dtype)
+            if method == 5:
+                array = torch.rand(channel, size, size, size//2, device=device, dtype=dtype)
+            else:
+                array = torch.rand(channel, size, size, size, device=device, dtype=dtype)
         q_min = -(pow(2, bit) - 1) / pow(2, bit + 1)
         q_max = 1 / 2
         grid = ((q_max - q_min) * array + q_min).requires_grad_(True)
@@ -118,6 +121,25 @@ def create_g_3d_v2(fp, fl, j, x_indices, y_indices, z_indices):
     y1 = torch.clamp(y_indices + 1, 0, height - 1)
     z0 = torch.clamp(z_indices, 0, depth - 1)
     z1 = torch.clamp(z_indices + 1, 0, depth - 1)
+
+    g_0 = g[:, z0, y0, x0]
+    g_1 = g[:, z1, y1, x0]
+    g_2 = g[:, z1, y0, x1]
+    g_3 = g[:, z0, y1, x1]
+    return g_0, g_1, g_2, g_3
+
+
+def create_g_3d_v3(fp, fl, j, x_indices, y_indices, z_indices):
+    g = fp[fl * 2 + j]
+    depth, height, width = g.shape[-3], g.shape[-2], g.shape[-1]
+
+    # Clamp indices with a mask to handle boundary conditions
+    x0 = torch.clamp((x_indices+1)//2, 0, width - 1)
+    x1 = torch.clamp(x_indices//2, 0, width - 1)
+    y0 = torch.clamp((y_indices+1)//2*2, 0, height - 1)
+    y1 = torch.clamp(y_indices//2*2+1, 0, height - 1)
+    z0 = torch.clamp((z_indices+1)//2*2, 0, depth - 1)
+    z1 = torch.clamp(z_indices//2*2+1, 0, depth - 1)
 
     g_0 = g[:, z0, y0, x0]
     g_1 = g[:, z1, y1, x0]

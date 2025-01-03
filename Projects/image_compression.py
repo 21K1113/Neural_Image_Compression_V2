@@ -124,6 +124,9 @@ def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=
         elif COMPRESSION_METHOD == 4:
             g0s = create_g_3d_v2(fp, fl, 0, *g0_flat)  # tuple
             g1s = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
+        elif COMPRESSION_METHOD == 5:
+            g0s = create_g_3d_v3(fp, fl, 0, *g0_flat)  # tuple
+            g1s = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
         pe = triangular_positional_encoding(torch.stack(pe_flat), PE_CHANNEL, DEVICE, MLP_DTYPE)
         if add_noise:
             g0s = add_noise_to_tuple(g0s, FP_G0_BIT)
@@ -132,7 +135,7 @@ def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=
         g1_k_grid = create_meshgrid(g1_k)
         if COMPRESSION_METHOD == 1 or COMPRESSION_METHOD == 2:
             g1s = create_g1_k(list(g1s), g1_k_grid)
-        elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4:
+        elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4 or COMPRESSION_METHOD == 5:
             g1s = create_g1_k_3d(list(g1s), g1_k_grid)
         stacked_g1 = torch.stack(g1s)
         sum_g1 = torch.sum(stacked_g1, dim=0)
@@ -287,7 +290,7 @@ def decode_image(fp, arc_decoder, mip_level, pr=True, div_size=10):
 # モデルのインスタンス化
 decoder = ColorDecoder().to(DEVICE)
 criterion = nn.MSELoss()
-feature_pyramid, feature_pyramid_levels = create_pyramid(FEATURE_PYRAMID_SIZE, FP_DIMENSION,
+feature_pyramid, feature_pyramid_levels = create_pyramid(FEATURE_PYRAMID_SIZE, FP_DIMENSION, COMPRESSION_METHOD,
                                                          FEATURE_PYRAMID_G0_CHANNEL, FP_G0_BIT,
                                                          FEATURE_PYRAMID_G1_CHANNEL, FP_G1_BIT,
                                                          DEVICE, MLP_DTYPE, TF_NO_MIP)
@@ -358,7 +361,7 @@ def process_images(train_model, fp):
                                          col * size:(col + 1) * size, :]
 
             timelaps(reconstructed_movie, make_filename_by_seq(f'image/{SAVE_NAME}', f'{SAVE_NAME}_{i}.avi'))
-        elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4:
+        elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4 or COMPRESSION_METHOD == 5:
             timelaps(reconstructed_image, make_filename_by_seq(f'image/{SAVE_NAME}', f'{SAVE_NAME}_{i}.avi'))
 
     return reconstructed_images
@@ -405,7 +408,7 @@ elif IMAGE_DIMENSION == 3:
             image = transform(image_original).to(DEVICE)
             print(image.shape)
             images.append(image)
-    elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4:
+    elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4 or COMPRESSION_METHOD == 5:
         images = []
         for i in range(MAX_MIP_LEVEL + 1):
             # [T, H, W, C] -> [C, T, H, W]
