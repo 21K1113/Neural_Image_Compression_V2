@@ -46,7 +46,9 @@ def quantize_clamp(tensor, num_bits=8):
 # fp用の量子化関数
 def quantize4fp(tensor, num_bits):
     rounded_tensor = torch.floor(tensor * pow(2, num_bits) + 0.5)
-    clamped_tensor = torch.clamp(rounded_tensor, min=-pow(2, num_bits-1)-1, max=pow(2, num_bits-1))
+    clamped_tensor = torch.clamp(rounded_tensor, min=-pow(2, num_bits-1)+1, max=pow(2, num_bits-1))
+    print("min", -pow(2, num_bits-1)-1)
+    print("max", pow(2, num_bits-1))
     return clamped_tensor / pow(2, num_bits)
 
 
