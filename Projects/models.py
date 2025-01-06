@@ -47,14 +47,12 @@ def quantize_clamp(tensor, num_bits=8):
 def quantize4fp(tensor, num_bits):
     rounded_tensor = torch.floor(tensor * pow(2, num_bits) + 0.5)
     clamped_tensor = torch.clamp(rounded_tensor, min=-pow(2, num_bits-1)+1, max=pow(2, num_bits-1))
-    print("min", -pow(2, num_bits-1)-1)
-    print("max", pow(2, num_bits-1))
     return clamped_tensor / pow(2, num_bits)
 
 
 # 自然数に変換し、uint8にする
 def save4fp(tensor, num_bits, dtype):
-    rounded_tensor = torch.floor(tensor * (pow(2, num_bits)-1) + 0.5)
+    rounded_tensor = torch.floor(tensor * pow(2, num_bits) + 0.5)
     positive_tensor = rounded_tensor + pow(2, num_bits - 1) - 1
     return positive_tensor.to(dtype)
 
@@ -63,5 +61,5 @@ def save4fp(tensor, num_bits, dtype):
 def load4fp(tensor, num_bits, mlt_dtype):
     float_tensor = tensor.to(mlt_dtype)
     zero_center_tensor = float_tensor - pow(2, num_bits - 1) + 1
-    return zero_center_tensor / (pow(2, num_bits)-1)
+    return zero_center_tensor / pow(2, num_bits)
 
