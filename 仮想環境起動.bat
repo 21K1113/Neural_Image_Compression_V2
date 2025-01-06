@@ -1,5 +1,5 @@
 @echo off
-cd .venv\Scripts
+cd .venv2\Scripts
 call activate.bat
 cd ../..
 cd Projects

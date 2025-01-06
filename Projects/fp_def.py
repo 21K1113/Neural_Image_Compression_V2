@@ -55,14 +55,18 @@ def create_pyramid(base_size, dim, method, g0_channel, g0_bit, g1_channel, g1_bi
         if i % 2 == 0:
             channel = g0_channel
             bit = g0_bit
+            if method == 5:
+                x_size = size//2
         else:  # i % 2 == 1
             channel = g1_channel
             bit = g1_bit
+            if method == 5:
+                x_size = size
         if dim == 2:
             array = torch.rand(channel, size, size, device=device, dtype=dtype)
         elif dim == 3:
             if method == 5:
-                array = torch.rand(channel, size, size, size//2, device=device, dtype=dtype)
+                array = torch.rand(channel, size, size, x_size, device=device, dtype=dtype)
             else:
                 array = torch.rand(channel, size, size, size, device=device, dtype=dtype)
         q_min = -(pow(2, bit) - 1) / pow(2, bit + 1)
