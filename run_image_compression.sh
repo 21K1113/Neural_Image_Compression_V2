@@ -8,7 +8,6 @@ cd "$(dirname "$0")"
 
 # プロジェクトディレクトリに移動
 cd Projects
-
 # Pythonスクリプトを実行
 python image_compression.py \
   IMAGE_PATH=data/Multilayer_para3_64.npy \
@@ -21,7 +20,8 @@ python image_compression.py \
   FEATURE_PYRAMID_SIZE_RATE=4 \
   COMPRESSION_METHOD=3 \
   IMAGE_DIMENSION=3 \
-  IMAGE_SIZE=64
+  IMAGE_SIZE=64 \
+  CROP_MIP_LEVEL=5
 
 python image_compression.py \
   IMAGE_PATH=data/Multilayer_para3_64.npy \
@@ -34,7 +34,8 @@ python image_compression.py \
   FEATURE_PYRAMID_SIZE_RATE=4 \
   COMPRESSION_METHOD=4 \
   IMAGE_DIMENSION=3 \
-  IMAGE_SIZE=64
+  IMAGE_SIZE=64 \
+  CROP_MIP_LEVEL=5
 
 # 実行後にシェルを保持する場合
 $SHELL
