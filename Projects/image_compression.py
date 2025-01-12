@@ -20,6 +20,8 @@ from models import *
 from fp_def import *
 from var2 import *
 
+set_seed(RANDOM_SEED)
+
 print_(datetime.datetime.now(), PRINTLOG_PATH)
 
 for var in over_write_variable_dict.keys():
@@ -286,6 +288,35 @@ def decode_image(fp, arc_decoder, mip_level, pr=True, div_size=10):
                         sample_number, sample_number, sample_number, 3)
             return result
 
+# デコード
+def decode_image_all(fp, arc_decoder, mip_level, pr=True):
+    with (torch.no_grad()):
+            if FP_DIMENSION == 2:
+                result = torch.zeros(IMAGE_SIZE // pow(2, mip_level), IMAGE_SIZE // pow(2, mip_level), 3,
+                                     dtype=MLP_DTYPE)
+            elif FP_DIMENSION == 3:
+                result = torch.zeros(IMAGE_SIZE // pow(2, mip_level), IMAGE_SIZE // pow(2, mip_level),
+                                     IMAGE_SIZE // pow(2, mip_level), 3, dtype=MLP_DTYPE)
+            for i in range(pow(IMAGE_SIZE, FP_DIMENSION)):
+                if FP_DIMENSION == 2:
+                    x = i % IMAGE_SIZE
+                    y = i // IMAGE_SIZE
+                    coord = torch.tensor([[x, y]], dtype=MLP_DTYPE, device=DEVICE)
+                elif FP_DIMENSION == 3:
+                    x = i % IMAGE_SIZE
+                    y = i // IMAGE_SIZE % IMAGE_SIZE
+                    z = i // IMAGE_SIZE // IMAGE_SIZE
+                    coord = torch.tensor([[x, y, z]], dtype=MLP_DTYPE, device=DEVICE)
+                decoder_input = create_decoder_input(fp, coord, 1, mip_level, False, 1)
+                decoder_output = arc_decoder(decoder_input)
+                if pr:
+                    print_(decoder_output.shape, PRINTLOG_PATH)
+                if FP_DIMENSION == 2:
+                    result[x:1 + x, y:1 + y, :] = decoder_output.reshape(1, 1, 3)
+                elif FP_DIMENSION == 3:
+                    result[x:1 + x, y:1 + y, z:1 + z, :] = decoder_output.reshape(1, 1, 1, 3)
+            return result
+
 
 # モデルのインスタンス化
 decoder = ColorDecoder().to(DEVICE)
@@ -337,9 +368,17 @@ def process_images(train_model, fp):
 
     reconstructed_images = []
     # デコード
+    torch.cuda.synchronize()
     for i in range(MAX_MIP_LEVEL + 1):
+        if not TF_TRAIN_MODEL:
+            for x in range(100):
+                reconstructed = decode_image(fp, decoder, 0, pr=False)
+                torch.cuda.synchronize()
         start = time.perf_counter()
-        reconstructed = decode_image(fp, decoder, i)
+        if TF_DECORD_ALL:
+            reconstructed = decode_image_all(fp, decoder, i, pr=False)
+        else:
+            reconstructed = decode_image(fp, decoder, i)
         end = time.perf_counter()
         print_("展開時間：" + str(end - start), PRINTLOG_PATH)
 

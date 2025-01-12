@@ -5,6 +5,7 @@ import math
 import glob
 import os
 import re
+import random
 
 from sympy.physics.units.systems.mksa import dimsys_MKSA
 from torch.cuda import device
@@ -352,3 +353,13 @@ def diff_fps(fp1, fp2, printlog_path):
         print_("min" + str(torch.min(diff)), printlog_path)
         print_("mean" + str(torch.mean(fp1[i])), printlog_path)
         print_("abs mean" + str(torch.mean(torch.abs(fp1[i]))), printlog_path)
+
+
+def set_seed(seed):
+    random.seed(seed)  # Pythonのrandomモジュールのシード
+    np.random.seed(seed)  # NumPyのシード
+    torch.manual_seed(seed)  # PyTorchのシード（CPU用）
+    torch.cuda.manual_seed(seed)  # PyTorchのシード（GPU用）
+    torch.cuda.manual_seed_all(seed)  # 複数GPU用
+    torch.backends.cudnn.deterministic = True  # 再現性のための設定
+    torch.backends.cudnn.benchmark = False  # パフォーマンスを犠牲にしても再現性を優先

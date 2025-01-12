@@ -5,6 +5,7 @@ from utils import *
 
 over_write_variable_dict = {
     "COMPRESSION_METHOD": "int",
+    "RANDOM_SEED": "int",
 
     "NUM_EPOCH": "int",
     "IMAGE_SIZE": "int",
@@ -40,6 +41,7 @@ over_write_variable_dict = {
     "TF_NO_MIP": "bool",
     "TF_USE_TRI_PE": "bool",
     "TF_TRAIN_MODEL": "bool",
+    "TF_DECORD_ALL": "bool",
     "TF_SHOW_RESULT": "bool",
     "TF_PRINT_LOSS": "bool",
     "TF_PRINT_PSNR": "bool",
@@ -70,6 +72,8 @@ COMPRESSION_METHOD = 1
 # 全体のbit数
 MLP_NUM_DTYPE = 32
 
+RANDOM_SEED = 1234                  # ランダムのシード値
+
 NUM_EPOCH = 1000                    # 学習回数
 UNIFORM_DISTRIBUTION_RATE = 0.05    # 一様分布からサンプリングする割合
 IMAGE_3D_SIZE = 64                  # 平坦化時のみ使用する
@@ -98,7 +102,8 @@ INTERVAL_SAVE_MODEL = 100000        # 学習途中のモデルを保存する間
 
 TF_NO_MIP = True                    # mipmapを生成しない
 TF_USE_TRI_PE = True                # 三角関数ではなく、三角波に基づいた位置エンコーディングを使用する（もう使ってない）
-TF_TRAIN_MODEL = True               # 学習するかどうか（Falseのとき、学習済みモデルをロードする）
+TF_TRAIN_MODEL = False               # 学習するかどうか（Falseのとき、学習済みモデルをロードする）
+TF_DECORD_ALL = True               # 1画素ずつデコードする
 
 TF_SHOW_RESULT = False              # 結果をmatplotlibかなんかで表示
 TF_PRINT_LOSS = True                # 一定間隔でlossをprintする
