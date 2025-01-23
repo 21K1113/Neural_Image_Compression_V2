@@ -63,6 +63,9 @@ PROJECT_NAME = "image_compression"
 # IMAGE_DTYPE = "ndarray"
 IMAGE_DTYPE = "image"
 
+# CSVのファイル名
+CSV_FILENAME = "csvlog/log.csv"
+
 COMPRESSION_METHOD = 1
 # 1: 2次元圧縮
 # 2: 3次元を2次元に平坦化
@@ -103,7 +106,7 @@ INTERVAL_SAVE_MODEL = 100000        # 学習途中のモデルを保存する間
 TF_NO_MIP = True                    # mipmapを生成しない
 TF_USE_TRI_PE = True                # 三角関数ではなく、三角波に基づいた位置エンコーディングを使用する（もう使ってない）
 TF_TRAIN_MODEL = True               # 学習するかどうか（Falseのとき、学習済みモデルをロードする）
-TF_DECORD_ALL = True               # 1画素ずつデコードする
+TF_DECORD_ALL = False               # 1画素ずつデコードする
 
 TF_SHOW_RESULT = False              # 結果をmatplotlibかなんかで表示
 TF_PRINT_LOSS = True                # 一定間隔でlossをprintする

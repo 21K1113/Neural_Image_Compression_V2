@@ -22,10 +22,23 @@ from var2 import *
 
 set_seed(RANDOM_SEED)
 
-print_(datetime.datetime.now(), PRINTLOG_PATH)
+start_datetime = str(datetime.datetime.now())
+
+print_(start_datetime, PRINTLOG_PATH)
+add_row_to_csv(CSV_FILENAME, start_datetime)
 
 for var in over_write_variable_dict.keys():
     print_(f"{var} : {eval(var)}", PRINTLOG_PATH)
+
+update_csv_value(CSV_FILENAME, start_datetime, "FILE NAME", IMAGE_PATH)
+update_csv_value(CSV_FILENAME, start_datetime, "IMAGE SIZE", IMAGE_SIZE)
+update_csv_value(CSV_FILENAME, start_datetime, "NUM EPOCH", NUM_EPOCH)
+update_csv_value(CSV_FILENAME, start_datetime, "METHOD", COMPRESSION_METHOD)
+update_csv_value(CSV_FILENAME, start_datetime, "G0 BIT", FP_G0_BIT)
+update_csv_value(CSV_FILENAME, start_datetime, "G0 CH", FEATURE_PYRAMID_G0_CHANNEL)
+update_csv_value(CSV_FILENAME, start_datetime, "G1 BIT", FP_G1_BIT)
+update_csv_value(CSV_FILENAME, start_datetime, "G1 CH", FEATURE_PYRAMID_G1_CHANNEL)
+update_csv_value(CSV_FILENAME, start_datetime, "G0 RES", FEATURE_PYRAMID_SIZE_RATE)
 
 
 def random_crop_dataset(datasets, crop_size, num_crops, uniform_distribution, dim=2):
@@ -343,6 +356,7 @@ def process_images(train_model, fp):
         train_models(fp)
         end = time.perf_counter()
         print_("学習時間：" + str(end - start), PRINTLOG_PATH)
+        update_csv_value(CSV_FILENAME, start_datetime, "TRAIN TIME", end - start)
 
         for g in fp:
             safe_statistics(g, PRINTLOG_PATH)
@@ -381,6 +395,7 @@ def process_images(train_model, fp):
             reconstructed = decode_image(fp, decoder, i)
         end = time.perf_counter()
         print_("展開時間：" + str(end - start), PRINTLOG_PATH)
+        update_csv_value(CSV_FILENAME, start_datetime, "DECODE TIME", end - start)
 
         reconstructed_image = quantize_from_norm_to_bit(reconstructed.cpu().numpy(), OUTPUT_BIT)
         reconstructed_image = reconstructed_image.astype(bits2dtype_np(OUTPUT_BIT))
@@ -492,6 +507,7 @@ for i in range(MAX_MIP_LEVEL + 1):
             quantize_from_norm_to_bit(images[i].cpu().numpy().transpose(1, 2, 3, 0), OUTPUT_BIT),
             reconstructed_images[i].astype(np.float32))
     print_(f"psnr: {psnr}", PRINTLOG_PATH)
+    update_csv_value(CSV_FILENAME, start_datetime, "PSNR", psnr)
 
 # for i in range(MAX_MIP_LEVEL + 1):
 #    save_result_to_csv(reconstructed_movie, make_filename_by_seq(f'LUT/{SAVE_NAME}', f'{SAVE_NAME}_{i}.csv'))
@@ -514,4 +530,6 @@ if TF_SHOW_RESULT:
 
     plt.show()
 
-print_(datetime.datetime.now(), PRINTLOG_PATH)
+end_datetime = datetime.datetime.now()
+print_(end_datetime, PRINTLOG_PATH)
+update_csv_value(CSV_FILENAME, start_datetime, "END DATE TIME", end_datetime)

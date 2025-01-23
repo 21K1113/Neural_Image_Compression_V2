@@ -10,6 +10,70 @@ import random
 from sympy.physics.units.systems.mksa import dimsys_MKSA
 from torch.cuda import device
 
+import csv
+
+def add_row_to_csv(file_name, key):
+    """
+    CSVファイルに新しい行を追加し、指定したキーを設定する。
+
+    :param file_name: CSVファイルの名前
+    :param key: 新しい行のキー
+    """
+    # ファイルが存在しない場合、ヘッダーを追加して新規作成
+    if not os.path.exists(file_name):
+        with open(file_name, mode='w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(['DATE TIME'])  # デフォルトのヘッダー
+
+    # 新しい行を追加
+    with open(file_name, mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow([key])
+
+def update_csv_value(file_name, key, column_name, value, key_column='DATE TIME'):
+    """
+    指定したキーの行の特定の列に値を設定する。
+
+    :param file_name: CSVファイルの名前
+    :param key: 更新対象の行のキー
+    :param column_name: 更新対象の列名
+    :param value: 設定する値
+    :param key_column: キー列の名前（デフォルトは 'DATE TIME'）
+    """
+    if not os.path.exists(file_name):
+        raise FileNotFoundError(f"The file '{file_name}' does not exist.")
+
+    updated = False
+    rows = []
+
+    # CSVファイルを読み込み
+    with open(file_name, mode='r', newline='', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        fieldnames = reader.fieldnames
+
+        # 必要に応じて新しい列を追加
+        if column_name not in fieldnames:
+            fieldnames.append(column_name)
+
+        for row in reader:
+            if row[key_column] == key:  # キーが一致する行を更新
+                row[column_name] = value
+                updated = True
+            rows.append(row)
+
+    # 行が見つからない場合、新しい行を追加
+    if not updated:
+        new_row = {field: '' for field in fieldnames}  # 空の行を作成
+        new_row[key_column] = key
+        new_row[column_name] = value
+        rows.append(new_row)
+
+    # CSVファイルを書き込み
+    with open(file_name, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
 
 def judge_torf(arg, error_massage=""):
     value = arg.split("=")[1].lower()
