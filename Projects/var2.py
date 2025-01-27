@@ -87,6 +87,8 @@ IMAGE_BIT = 8                       # 入力画像のbit数（不完全）
 OUTPUT_BIT = 8                      # 出力画像のbit数（不完全）
 PE_CHANNEL = 6                      # 位置エンコーディングの次元数
 HIDDEN_LAYER_CHANNEL = 64           # デコーダの中間層のノード数
+OPTIMIZER_LR_FP = 0.01              # 特徴ピラミッドの初期学習率
+OPTIMIZER_LR_DECODER = 0.005        # デコーダの初期学習率
 
 FEATURE_PYRAMID_G0_CHANNEL = 12     # 特徴ピラミッドのG0のチャンネル数
 FP_G0_BIT = 8                       # 特徴ピラミッドのG0の量子化ビット数

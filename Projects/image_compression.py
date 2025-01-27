@@ -407,8 +407,8 @@ for g in feature_pyramid:
     safe_statistics(g, PRINTLOG_PATH)
 feature_pyramid_mip_levels_dict = create_pyramid_mip_levels(IMAGE_SIZE, FEATURE_PYRAMID_SIZE_RATE)
 optimizer = optim.Adam([
-    {'params': feature_pyramid, 'lr': 0.01},  # fpの初期学習率
-    {'params': decoder.parameters(), 'lr': 0.005}  # decoderの初期学習率
+    {'params': feature_pyramid, 'lr': OPTIMIZER_LR_FP/8*NUM_CROP},  # fpの初期学習率
+    {'params': decoder.parameters(), 'lr': OPTIMIZER_LR_DECODER/8*NUM_CROP}  # decoderの初期学習率
 ])
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=NUM_EPOCH, eta_min=0)
 writer = SummaryWriter(f'../log/{SAVE_NAME}')
