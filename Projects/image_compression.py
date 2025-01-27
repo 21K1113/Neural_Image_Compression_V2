@@ -55,13 +55,17 @@ def random_crop_dataset(datasets, crop_size, num_crops, uniform_distribution, di
     data_size = dataset.shape[1]
     re_crop_size = max(1, crop_size // pow(2, lod))
     for _ in range(num_crops):
-        s = (0, data_size - re_crop_size + 1)
+        if TF_CROP_EQUAL:
+            s = (-re_crop_size + 1, data_size - 1 + 1)
+        else:
+            s = (0, data_size - re_crop_size + 1)
         start_coord = torch.randint(s[0], s[1], (dim,)).to(DEVICE)
-        end_coord = start_coord + re_crop_size
+        crop_start = torch.clamp(start_coord, min=0)
+        crop_end = torch.clamp(start_coord + re_crop_size, max=IMAGE_SIZE)
         if dim == 2:
-            crop = dataset[:, start_coord[0]:end_coord[0], start_coord[1]:end_coord[1]]
+            crop = dataset[:, crop_start[0]:crop_end[0], crop_start[1]:crop_end[1]]
         elif dim == 3:
-            crop = dataset[:, start_coord[0]:end_coord[0], start_coord[1]:end_coord[1], start_coord[2]:end_coord[2]]
+            crop = dataset[:, crop_start[0]:crop_end[0], crop_start[1]:crop_end[1], crop_start[2]:crop_end[2]]
         crop = crop.reshape(3, -1).T
         crops.append(crop)  # チャンネルを最後から最初に移動
         coords.append(start_coord)
@@ -158,6 +162,64 @@ def create_decoder_input(fp, coords, num_crop, mip_level, add_noise, image_size=
     decoder_input = torch.cat(decoder_input, dim=1)
     return decoder_input.T
 
+# TF_CROP_EQUAL時
+def create_decoder_input_one(fp, coords, num_crop, mip_level, add_noise, image_size=0):
+    decoder_input = []
+    fl = feature_pyramid_mip_levels_dict[mip_level]
+    if image_size != 0:
+        sample_number = image_size
+    else:
+        sample_number = pow(2, max(0, CROP_MIP_LEVEL - mip_level))
+    step_number = pow(2, mip_level - FEATURE_PYRAMID_SIZE_RATE - fl * 2)
+    pe_step_number = pow(2, mip_level)
+    for i in range(num_crop):
+        crop_start = torch.clamp(coords[i], min=0)  # (x, y, z)
+        crop_end = torch.clamp(coords[i] + sample_number, max=IMAGE_SIZE)  # (x, y, z)
+        crop_size = crop_end - crop_start  # (x, y, z)
+        lod_tensor = torch.ones(1, crop_size.prod(), dtype=MLP_DTYPE, device=DEVICE)
+        sample_ranges = []
+        g0_indices = []
+        g1_indices = []
+        pe_indices = []
+        g1_ks = []
+        for c in range(FP_DIMENSION):
+            sample_ranges.append(torch.arange(crop_size[c], dtype=MLP_DTYPE, device=DEVICE))
+            range_add_coord = sample_ranges[c] + crop_start[c]
+            step_tensor = (range_add_coord + 0.5) * step_number - 0.5
+            g0_indices.append(torch.floor(step_tensor).to(torch.int))
+            g1_indices.append((step_tensor // 2).to(torch.int))
+            pe_indices.append(range_add_coord * pe_step_number)
+            g1_ks.append(step_tensor / 2 % 1)
+        g0_flat = create_meshgrid(g0_indices)
+        g1_flat = create_meshgrid(g1_indices)
+        pe_flat = create_meshgrid(pe_indices)
+        if COMPRESSION_METHOD == 1 or COMPRESSION_METHOD == 2:
+            g0s = create_g(fp, fl, 0, *g0_flat)  # tuple
+            g1s = create_g(fp, fl, 1, *g1_flat)  # tuple
+        elif COMPRESSION_METHOD == 3:
+            g0s = create_g_3d(fp, fl, 0, *g0_flat)  # tuple
+            g1s = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
+        elif COMPRESSION_METHOD == 4:
+            g0s = create_g_3d_v2(fp, fl, 0, *g0_flat)  # tuple
+            g1s = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
+        elif COMPRESSION_METHOD == 5:
+            g0s = create_g_3d_v3(fp, fl, 0, *g0_flat)  # tuple
+            g1s = create_g_3d(fp, fl, 1, *g1_flat)  # tuple
+        pe = triangular_positional_encoding(torch.stack(pe_flat), PE_CHANNEL, DEVICE, MLP_DTYPE)
+        if add_noise:
+            g0s = add_noise_to_tuple(g0s, FP_G0_BIT)
+            g1s = add_noise_to_tuple(g1s, FP_G1_BIT)
+        g1_k_grid = create_meshgrid(g1_ks)
+        if COMPRESSION_METHOD == 1 or COMPRESSION_METHOD == 2:
+            g1s = create_g1_k(list(g1s), g1_k_grid)
+        elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4 or COMPRESSION_METHOD == 5:
+            g1s = create_g1_k_3d(list(g1s), g1_k_grid)
+        stacked_g1 = torch.stack(g1s)
+        sum_g1 = torch.sum(stacked_g1, dim=0)
+        decoder_input.append(torch.cat([*g0s, sum_g1, pe, lod_tensor * mip_level], dim=0))
+    decoder_input = torch.cat(decoder_input, dim=1)
+    return decoder_input.T
+
 
 # モデルの学習
 def train_models(fp):
@@ -191,7 +253,10 @@ def train_models(fp):
         else:
             add_noise = False
 
-        decoder_input = create_decoder_input(fp, coords, NUM_CROP, lod, add_noise)
+        if TF_CROP_EQUAL and not TF_CROP_PAD:
+            decoder_input = create_decoder_input_one(fp, coords, NUM_CROP, lod, add_noise)
+        else:
+            decoder_input = create_decoder_input(fp, coords, NUM_CROP, lod, add_noise)
 
         decoder_output = decoder(decoder_input)
 
@@ -249,9 +314,9 @@ def train_models(fp):
                 print_(printlog, PRINTLOG_PATH)
             else:
                 print(f'Epoch [{epoch + 1}/{NUM_EPOCH}]')
-        if (epoch + 1) % INTERVAL_SAVE_MODEL == 0:
+        if (epoch + 1) % INTERVAL_SAVE_MODEL == 0 and (epoch + 1) != NUM_EPOCH:
             # エンコーダとデコーダの保存
-            torch.save(decoder.state_dict(), f'model/{SAVE_NAME}_{epoch}_decoder.pth')
+            torch.save(decoder.state_dict(), f'model/{SAVE_NAME}_{epoch+1}_decoder.pth')
 
 
 # デコード
@@ -497,6 +562,7 @@ print(np.min(a))
 print(np.mean(np.abs(a)))
 """
 
+# PSNRを計算する
 for i in range(MAX_MIP_LEVEL + 1):
     if IMAGE_DIMENSION == 2 or COMPRESSION_METHOD == 2:
         psnr = calculate_psnr(
@@ -508,6 +574,23 @@ for i in range(MAX_MIP_LEVEL + 1):
             reconstructed_images[i].astype(np.float32))
     print_(f"psnr: {psnr}", PRINTLOG_PATH)
     update_csv_value(CSV_FILENAME, start_datetime, "PSNR", psnr)
+
+if TF_SAVE_LUT:
+    for k in range(MAX_MIP_LEVEL + 1):
+        if COMPRESSION_METHOD == 2:
+            restored_movie = np.zeros((IMAGE_3D_SIZE, IMAGE_3D_SIZE, IMAGE_3D_SIZE, 3), dtype=np.uint8)
+            for i in range(IMAGE_3D_SIZE):
+                row = i // (IMAGE_SIZE // IMAGE_3D_SIZE)  # 行の計算
+                col = i % (IMAGE_SIZE // IMAGE_3D_SIZE)  # 列の計算
+                restored_movie[i] = reconstructed_images[k][row * IMAGE_3D_SIZE:(row + 1) * IMAGE_3D_SIZE,
+                                    col * IMAGE_3D_SIZE:(col + 1) * IMAGE_3D_SIZE, :]
+        elif COMPRESSION_METHOD == 3 or COMPRESSION_METHOD == 4 or COMPRESSION_METHOD == 5:
+            restored_movie = reconstructed_images[k]
+        if TF_NO_MIP:
+            save_result_to_csv(restored_movie, make_filename_by_seq(f'LUT/', f'{SAVE_NAME}.csv'))
+        else:
+            save_result_to_csv(restored_movie, make_filename_by_seq(f'LUT/{SAVE_NAME}', f'{SAVE_NAME}_{k}.csv'))
+
 
 # for i in range(MAX_MIP_LEVEL + 1):
 #    save_result_to_csv(reconstructed_movie, make_filename_by_seq(f'LUT/{SAVE_NAME}', f'{SAVE_NAME}_{i}.csv'))

@@ -107,6 +107,8 @@ TF_NO_MIP = True                    # mipmapを生成しない
 TF_USE_TRI_PE = True                # 三角関数ではなく、三角波に基づいた位置エンコーディングを使用する（もう使ってない）
 TF_TRAIN_MODEL = True               # 学習するかどうか（Falseのとき、学習済みモデルをロードする）
 TF_DECORD_ALL = False               # 1画素ずつデコードする
+TF_CROP_EQUAL = True                # データセットを作るとき、すべての画素が均等にクロップされるようにする
+TF_CROP_PAD = False                  # その際、パディングを用いる（Falseのとき、バッチサイズ1で学習する）
 
 TF_SHOW_RESULT = False              # 結果をmatplotlibかなんかで表示
 TF_PRINT_LOSS = True                # 一定間隔でlossをprintする
@@ -114,6 +116,8 @@ TF_PRINT_PSNR = True                # 一定間隔でpsnrをprintする
 TF_PRINT_TIME = True                # 一定間隔で時間をprintする
 TF_WRITE_PSNR = True                # Tensorboardに学習ステップごとのPSNRを記録する
 TF_WRITE_TIME = True                # Tensorboardに学習ステップごとの時間を記録する
+
+TF_SAVE_LUT = True                  # LUTとしてcsvで結果を保存する
 
 # コマンドラインから変数を取得し値を更新
 if len(sys.argv) > 1:
@@ -140,6 +144,9 @@ if COMPRESSION_METHOD == 2:
 
 if TF_NO_MIP:
     MAX_MIP_LEVEL = 0
+if TF_CROP_EQUAL and not TF_CROP_PAD:
+    NUM_CROP = 1
+
 DECODER_INPUT_CHANNEL = FEATURE_PYRAMID_G0_CHANNEL * pow(2, FP_DIMENSION) + FEATURE_PYRAMID_G1_CHANNEL + PE_CHANNEL * FP_DIMENSION + 1
 if COMPRESSION_METHOD == 2:
     DECODER_INPUT_CHANNEL = FEATURE_PYRAMID_G0_CHANNEL * pow(2, FP_DIMENSION) + FEATURE_PYRAMID_G1_CHANNEL + PE_CHANNEL * FP_DIMENSION + 1
